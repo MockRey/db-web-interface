@@ -34,6 +34,35 @@ function App() {
     setTemplates(data.templates || []);
   };
 
+  // Асинхронная функция для создания нового шаблона
+  const newTemplate = async (e) => {
+    e.preventDefault();
+
+    const templateName = prompt('Введите название шаблона:'); // вызываем диалоговое окно для ввода названия шаблона
+
+    if (templateName) { // Проверяем, что пользователь не нажал "Отмена"
+
+      try {
+
+        const response = await fetch('http://localhost:3000/templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: templateName, sql })
+        });
+
+        if (!response.ok) {
+          throw new Error('Ошибка при создании шаблона');
+        }
+
+        await loadTemplates(); // Загружаем обновлённый список шаблонов
+      } 
+
+      catch (error) {
+        console.error("Ошибка:", error);
+      }
+    }
+  };
+
   // Функция для подстановки шаблона в форму
   const handleTemplateClick = (templateSql) => {
     setSql(templateSql); // обновляем переменную sql, подставляя в неё SQL-запрос из шаблона
@@ -59,6 +88,7 @@ function App() {
         />
         <br />
         <button type="submit">Выполнить запрос</button> {/* тип кнопки показывает, что она используется для отправки формы */}
+        <button onClick={newTemplate}>Сохранить шаблон</button> {/* при клике на кнопку вызывается функция newTemplate для создания нового шаблона */}
       </form>
 
       <h2>Сохранённые шаблоны:</h2>

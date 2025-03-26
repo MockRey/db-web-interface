@@ -87,8 +87,8 @@ app.post('/templates', async (req, res) => {
     }
 
     try {
-        const result = await pool.query('INSERT INTO sql_templates (name, sql) VALUES ($1, $2) RETURNING *', [name, sql]);
-        res.status(201).json({ template: result.rows[0] });
+        await pool.query('INSERT INTO sql_templates (name, sql) VALUES ($1, $2) RETURNING *', [name, sql]);
+        res.status(201).json({ message: "Шаблон успешно сохранён!" });
     } catch (err) {
         console.error('❌ Ошибка при сохранении шаблона:', err);
         res.status(500).json({ error: 'Ошибка сохранения шаблона' });
