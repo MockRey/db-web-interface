@@ -13,29 +13,53 @@ function App() {
 
   // Асинхронная функция для отправки SQL-запроса
   const handleSubmit = async (e) => { // параметр e - событие в браузере (в нашем случае - нажатие на кнопку отправки формы)
-    e.preventDefault(); // Отменяем стандартное поведение браузера (перезагрузку страницы)
+    e.preventDefault(); // Отменяем стандартное поведение браузера при отправке формы на бэкенд (перезагрузку страницы)
     
-    // Отправляем POST-запрос на сервер с SQL-запросом
-    const response = await fetch('http://localhost:3000/query', { // Переменная response - результат выполнения запроса fetch
-      method: 'POST', // потому что отправляем данные на сервер
-      headers: { 'Content-Type': 'application/json' }, // заголовки указывают, что отправляем SQL-запрос в формате JSON
-      body: JSON.stringify({ sql }) // тело запроса, где переменная sql превращается в JSON-строку
-    });
+    try {
+      // Отправляем POST-запрос на сервер с SQL-запросом
+      const response = await fetch('http://localhost:3000/query', { // Переменная response - результат выполнения запроса fetch
+        method: 'POST', // потому что отправляем данные на сервер
+        headers: { 'Content-Type': 'application/json' }, // заголовки указывают, что отправляем SQL-запрос в формате JSON
+        body: JSON.stringify({ sql }) // тело запроса, где переменная sql превращается в JSON-строку
+      });
 
-    // Получаем ответ от сервера
-    const data = await response.json(); // ждём завершения промиса и преобразуем ответ в JSON
-    setResult(data.data || []); // обновляем переменную result (в начале был пустой массив), передавая в неё данные из ответа сервера (или пустой массив, если данных нет)
+      if (!response.ok) {
+        throw new Error(`${response.status} ${response.statusText}`); // если ответ от сервера не успешный, то выбрасываем ошибку с кодом ответа и текстом
+      }
+
+      // Получаем ответ от сервера
+      const data = await response.json(); // ждём завершения промиса и преобразуем ответ в JSON
+      setResult(data.data || []); // обновляем переменную result (в начале был пустой массив), передавая в неё данные из ответа сервера (или пустой массив, если данных нет)
+    }
+    
+    catch (error) {
+      console.error("Ошибка при выполнении SQL-запроса:", error);
+      alert("Произошла ошибка при выполнении SQL-запроса.");
+    }
   };
 
   // Асинхронная функция для выгрузки шаблонов с сервера
   const loadTemplates = async () => {
-    const response = await fetch('http://localhost:3000/templates');
-    const data = await response.json();
-    setTemplates(data.templates || []);
+
+    try {
+      const response = await fetch('http://localhost:3000/templates');
+
+      if (!response.ok) {
+        throw new Error(`${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      setTemplates(data.templates || []);
+    }
+
+    catch (error) {
+      console.error("Ошибка при выгрузке шаблонов:", error);
+      alert("Произошла ошибка при выгрузке шаблонов.");
+    }
   };
 
   // Асинхронная функция для создания нового шаблона
-  const newTemplate = async (e) => {
+  const createTemplate = async (e) => {
     e.preventDefault();
 
     const templateName = prompt('Введите название шаблона:'); // вызываем диалоговое окно для ввода названия шаблона
@@ -43,7 +67,6 @@ function App() {
     if (templateName) { // Проверяем, что пользователь не нажал "Отмена"
 
       try {
-
         const response = await fetch('http://localhost:3000/templates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -51,20 +74,45 @@ function App() {
         });
 
         if (!response.ok) {
-          throw new Error('Ошибка при создании шаблона');
+          throw new Error(`${response.status} ${response.statusText}`);
         }
 
         await loadTemplates(); // Загружаем обновлённый список шаблонов
       } 
 
       catch (error) {
-        console.error("Ошибка:", error);
+        console.error("Ошибка при создании шаблона:", error);
+        alert("Произошла ошибка при создании шаблона.");
       }
     }
   };
 
+  // Асинхронная функция для удаления существующего шаблона
+  const deleteTemplate = async (id) => {
+
+    const confirmDelete = window.confirm("Вы уверены, что хотите удалить шаблон?"); // вызываем диалоговое окно для подтверждения удаления шаблона
+    if (!confirmDelete) return; // если пользователь нажал "Отмена", выходим из функции
+
+    try {
+      const response = await fetch(`http://localhost:3000/templates/${id}`, {
+        method: "DELETE"
+      });
+
+      if (response.ok) {
+        setTemplates(prevTemplates => prevTemplates.filter(template => template.id !== id)); // обновляем список шаблонов, не перезагружая страницу, а просто формируя новый список шаблонов без учёта ID удалённого
+      } else {
+        throw new Error(`${response.status} ${response.statusText}`);
+      }
+    }
+    
+    catch (error) {
+      console.error("Ошибка при удалении шаблона:", error);
+      alert("Произошла ошибка при удалении шаблона.");
+    }
+};
+
   // Функция для подстановки шаблона в форму
-  const handleTemplateClick = (templateSql) => {
+  const handleTemplate = (templateSql) => {
     setSql(templateSql); // обновляем переменную sql, подставляя в неё SQL-запрос из шаблона
   };
 
@@ -88,15 +136,20 @@ function App() {
         />
         <br />
         <button type="submit">Выполнить запрос</button> {/* тип кнопки показывает, что она используется для отправки формы */}
-        <button onClick={newTemplate}>Сохранить шаблон</button> {/* при клике на кнопку вызывается функция newTemplate для создания нового шаблона */}
+        <button onClick={createTemplate}>Сохранить шаблон</button> {/* при клике на кнопку вызывается функция createTemplate для создания нового шаблона */}
       </form>
 
       <h2>Сохранённые шаблоны:</h2>
       <div>
         {templates.map((template) => ( // функция map применяется к массиву templates и возвращает массив кнопок с названиями шаблонов
-          <button key={template.id} onClick={() => handleTemplateClick(template.sql)}> {/* атрибут key необходим при парсинге массива; при клике на кнопку вызывается функция handleTemplateClick и подставляет запрос в форму */}
-            {template.name}
-          </button>
+          <div key={template.id}> {/* атрибут key необходим при парсинге массива; в данном случае - id шаблона */}
+            <button onClick={() => handleTemplate(template.sql)}> {/* при клике на кнопку вызывается функция handleTemplate и подставляет запрос в форму */}
+              {template.name}
+            </button>
+            <button onClick={() => deleteTemplate(template.id)} style={{ background: "red", color: "white" }}> {/*  */}
+              Удалить
+            </button>
+          </div>
         ))}
       </div>
 
