@@ -64,9 +64,11 @@ app.post('/query', async (req, res) => {
         }
 
         res.json({ data: result.rows }); // Возвращаем результат запроса в формате JSON; в переменную data попадает ответ по запросу к БД
-    } catch (err) { // Обработка ошибок
+    }
+    
+    catch (err) { // Обработка ошибок
         console.error('❌ Ошибка выполнения SQL-запроса:', err); // Выводим ошибку в консоль (СЕРВЕРА!!! - браузер не отобразит)
-        res.status(500).json({ error: 'Ошибка выполнения запроса' }); // Возвращаем ошибку клиенту
+        res.status(500).json({ error: 'Ошибка выполнения SQL-запроса' }); // Возвращаем ошибку клиенту
     }
 });
 
@@ -74,17 +76,19 @@ app.post('/query', async (req, res) => {
 app.get('/templates', async (req, res) => { // Переменная req не будет использоваться, но необходима для сохранения порядка аргументов
     try {
         const result = await pool.query('SELECT * FROM sql_templates'); // Получаем все шаблоны из таблицы sql_templates
-
         res.json({ templates: result.rows }); // в переменную templates попадает ответ по запросу к БД
-    } catch (err) {
-        console.error('❌ Ошибка при получении шаблонов:', err);
-        res.status(500).json({ error: 'Ошибка получения шаблонов' });
+    }
+    
+    catch (err) {
+        console.error('❌ Ошибка при выгрузке шаблонов:', err);
+        res.status(500).json({ error: 'Ошибка выгрузки шаблонов' });
     }
 });
 
 // Эндпоинт для сохранения шаблона запроса
 app.post('/templates', async (req, res) => {
     const { name, sql } = req.body; // Записываем в переменные name и sql значения из тела запроса, пришедшего от клиента
+    
     if (!name || !sql) { // Проверяем, что оба поля заполнены
         return res.status(400).json({ error: 'Имя шаблона и SQL-запрос обязательны!' });
     }
@@ -92,7 +96,9 @@ app.post('/templates', async (req, res) => {
     try {
         await pool.query('INSERT INTO sql_templates (name, sql) VALUES ($1, $2) RETURNING *', [name, sql]); // Выполняем запрос в базу на добавление нового шаблона
         res.status(201).json({ message: "Шаблон успешно сохранён!" }); // 201 статус означает, что ресурс был успешно создан; возвращаем сообщение об успехе клиенту
-    } catch (err) {
+    }
+    
+    catch (err) {
         console.error('❌ Ошибка при сохранении шаблона:', err);
         res.status(500).json({ error: 'Ошибка сохранения шаблона' });
     }
@@ -100,6 +106,7 @@ app.post('/templates', async (req, res) => {
 
 // Эндпоинт для удаления шаблона запроса
 app.delete('/templates/:id', async (req, res) => {
+    
     const { id } = req.params; // Записываем в переменную id пришедшее значение id шаблона
 
     try {
@@ -109,8 +116,10 @@ app.delete('/templates/:id', async (req, res) => {
         }
 
         res.json({ message: "Шаблон успешно удалён" }); // возвращаем сообщение об успехе клиенту
-    } catch (err) {
+    }
+    
+    catch (err) {
         console.error("❌ Ошибка при удалении шаблона:", err);
-        res.status(500).json({ error: "Ошибка сервера" });
+        res.status(500).json({ error: "Ошибка удаления шаблона" });
     }
 });
