@@ -1,0 +1,9 @@
+.filter-form {
+  display: flex;
+  justify-content: space-around
+}
+
+.filter-form label {
+    display: flex;
+    gap: 6px;
+}
