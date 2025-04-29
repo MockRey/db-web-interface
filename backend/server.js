@@ -123,3 +123,47 @@ app.delete('/templates/:id', async (req, res) => {
         res.status(500).json({ error: "Ошибка удаления шаблона" });
     }
 });
+
+// Эндпоинт для фильтрации play_history и передачи данных по игроку
+app.post('/player-stats', async (req, res) => {
+    const { playerId, startDate, endDate, game } = req.body;
+  
+    try {
+      // Сначала проверяем, существует ли такой игрок
+      const playerCheck = await pool.query('SELECT * FROM players WHERE player_id = $1', [playerId]);
+      
+      if (playerCheck.rowCount === 0) {
+        return res.status(404).json({ error: 'Игрок с таким ID не найден' });
+      }
+  
+      // Строим запрос для получения статистики
+      let query = `
+        SELECT play_history.*, levels.game_id
+        FROM play_history
+        JOIN levels ON play_history.level_id = levels.level_id
+        WHERE play_history.player_id = $1
+          AND play_history.start_time >= $2
+          AND play_history.end_time <= $3
+      `;
+      const params = [playerId, startDate, endDate];
+  
+      if (game !== 'all') {
+        query += ` AND levels.game_id = $4`;
+        params.push(game);
+      }
+  
+      const result = await pool.query(query, params);
+  
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: 'Нет данных по указанным условиям' });
+      }
+  
+      res.json({ stats: result.rows });
+    } 
+    
+    catch (err) {
+      console.error('❌ Ошибка при получении статистики игрока:', err);
+      res.status(500).json({ error: 'Ошибка получения статистики игрока' });
+    }
+  });
+  

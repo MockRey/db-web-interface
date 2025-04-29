@@ -6,12 +6,55 @@ const PlayerStats = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [game, setGame] = useState('all');
+  
+  // Асинхронная функция для обработки отправки формы с данными по игроку
+  const handlePlayerSearch = async (e) => {
+    e.preventDefault();
+
+    // Проверяем, что дата начала меньше даты конца
+    if (endDate < startDate) {
+        alert('Задан неверный диапазон дат');
+        return;
+    }
+
+    // Собираем данные из формы в переменную searchData
+    const searchData = {
+        playerId,
+        startDate,
+        endDate,
+        game,
+    };
+
+    try {
+        const response = await fetch('http://localhost:3000/player-stats', {
+        method: 'POST',
+        headers: {  'Content-Type': 'application/json'  },
+        body: JSON.stringify(searchData),
+        });
+
+        // Новый обработчик ошибок - выводит полученную ошибку в алерт, а не в консоль
+        if (!response.ok) {
+            const errorData = await response.json();
+            alert(errorData.error || 'Произошла ошибка');
+            return;
+        }
+
+        const stats = await response.json();
+        console.log('Ответ от сервера:', stats);
+        // Здесь потом будем строить графики на основе полученных данных
+    }
+
+    catch (error) {
+        console.error("Ошибка при получении данных:", error);
+        alert("Произошла ошибка при получении статистики игрока.");
+    }
+  };  
 
   return (
     <div className="player-stats-input">
       <h1>Статистика игрока</h1>
 
-      <form className="filter-form">
+      <form onSubmit={handlePlayerSearch} className="filter-form">
         <label>
           ID игрока:
           <input
@@ -48,6 +91,8 @@ const PlayerStats = () => {
             <option value="BOR">BOR</option>
           </select>
         </label>
+
+        <button type="submit" className="filter-button">Поиск</button>
       </form>
     </div>
   );

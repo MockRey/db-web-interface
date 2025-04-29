@@ -7,3 +7,7 @@
     display: flex;
     gap: 6px;
 }
+
+.filter-button  {
+    background-color: lightblue;
+}
