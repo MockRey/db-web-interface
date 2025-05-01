@@ -133,7 +133,7 @@ app.post('/player-stats', async (req, res) => {
       const playerCheck = await pool.query('SELECT * FROM players WHERE player_id = $1', [playerId]);
       
       if (playerCheck.rowCount === 0) {
-        return res.status(404).json({ error: 'Игрок с таким ID не найден' });
+        return res.status(404).json({ error: 'Некорректный ID игрока' });
       }
   
       // Строим запрос для получения статистики
@@ -142,16 +142,30 @@ app.post('/player-stats', async (req, res) => {
         FROM play_history
         JOIN levels ON play_history.level_id = levels.level_id
         WHERE play_history.player_id = $1
-          AND play_history.start_time >= $2
-          AND play_history.end_time <= $3
       `;
-      const params = [playerId, startDate, endDate];
+      const params = [playerId];
+      let paramIndex = 2; // счётчик индексов, 2 - это следующий индекс после $1
+
+      // Добавляем фильтр по startDate, если он передан
+        if (startDate) {
+            query += ` AND play_history.start_time >= $${paramIndex}`;
+            params.push(startDate);
+            paramIndex++;
+        }
+
+      // Добавляем фильтр по endDate, если он передан
+        if (endDate) {
+            query += ` AND play_history.end_time <= $${paramIndex}`;
+            params.push(endDate);
+            paramIndex++;
+        }
   
+      // Проверка выбранной игры (если не 'all', то добавляем условие)
       if (game !== 'all') {
-        query += ` AND levels.game_id = $4`;
+        query += ` AND levels.game_id = $${paramIndex}`;
         params.push(game);
       }
-  
+      
       const result = await pool.query(query, params);
   
       if (result.rowCount === 0) {

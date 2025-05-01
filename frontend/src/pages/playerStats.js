@@ -12,7 +12,7 @@ const PlayerStats = () => {
     e.preventDefault();
 
     // Проверяем, что дата начала меньше даты конца
-    if (endDate < startDate) {
+    if ((endDate) && (startDate) && (endDate < startDate)) { //первые две скобки проверяют, что значения не нулевые и пользователь не оставил поля пустыми специально
         alert('Задан неверный диапазон дат');
         return;
     }
