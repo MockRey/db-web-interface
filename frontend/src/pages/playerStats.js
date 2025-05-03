@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useMemo } from 'react';
 import './playerStats.css';
 
 const PlayerStats = () => {
@@ -6,6 +7,7 @@ const PlayerStats = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [game, setGame] = useState('all');
+  const [stats, setStats] = useState([]);
   
   // Асинхронная функция для обработки отправки формы с данными по игроку
   const handlePlayerSearch = async (e) => {
@@ -39,8 +41,9 @@ const PlayerStats = () => {
             return;
         }
 
-        const stats = await response.json();
-        console.log('Ответ от сервера:', stats);
+        const data = await response.json();
+        setStats(data.stats);
+        console.log('Ответ от сервера:', data);
         // Здесь потом будем строить графики на основе полученных данных
     }
 
@@ -48,52 +51,101 @@ const PlayerStats = () => {
         console.error("Ошибка при получении данных:", error);
         alert("Произошла ошибка при получении статистики игрока.");
     }
-  };  
+  };
+  
+  // Функция для получения уровней с наибольшим числом поражений
+  const mostLostLevels = useMemo(() => { // useMemo - хук, который позволяет оптимизировать производительность, запоминает результат функции и пересчитывает его только при изменении переменной stats)
+    if (!stats || stats.length === 0) return { levels: [], count: 0 }; // если нет данных, возвращаем пустой массив и 0 (нужна ли эта строка?)
+  
+    const losses = stats.filter(item => item.result === false); // фильтруем массив stats, оставляя только те элементы, где результат - поражение (false)
+  
+    const lossCounts = {}; // создаём объект для хранения количества поражений по уровням, перебираем массив losses и считаем количество поражений по каждому уровню
+    losses.forEach(item => {
+      const level = item.level_id;
+      lossCounts[level] = (lossCounts[level] || 0) + 1; // если уровень уже есть в объекте, увеличиваем его значение на 1, если нет - создаём его со значением 1
+    });
+  
+    const maxLosses = Math.max(...Object.values(lossCounts)); // находим максимальное количество поражений среди всех уровней
+  
+    const worstLevels = Object.entries(lossCounts) // преобразуем объект lossCounts в массив пар [ключ, значение], где ключ - это уровень, а значение - количество поражений
+      .filter(([_, count]) => count === maxLosses) // фильтруем массив, оставляя только те пары, где количество поражений равно максимальному
+      .map(([levelId]) => levelId); // преобразуем массив пар обратно в массив уровней, оставляя только ключи (уровни)
+  
+    return { levels: worstLevels, count: maxLosses };
+  }, [stats]); 
 
   return (
-    <div className="player-stats-input">
-      <h1>Статистика игрока</h1>
+    <div className="main">
 
-      <form onSubmit={handlePlayerSearch} className="filter-form">
-        <label>
-          ID игрока:
-          <input
-            type="text"
-            value={playerId}
-            onChange={(e) => setPlayerId(e.target.value)}
-          />
-        </label>
+        {/* Форма для ввода данных по игроку */}
+        <div className="player-stats-input">
+            <h1>Статистика игрока</h1>
 
-        <label>
-          Дата с:
-          <input
-            type="datetime-local"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-        </label>
+            <form onSubmit={handlePlayerSearch} className="filter-form">
+                <label>
+                ID игрока:
+                <input
+                    type="text"
+                    value={playerId}
+                    onChange={(e) => setPlayerId(e.target.value)}
+                />
+                </label>
 
-        <label>
-          По:
-          <input
-            type="datetime-local"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </label>
+                <label>
+                Дата с:
+                <input
+                    type="datetime-local"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                />
+                </label>
 
-        <label>
-          Игра:
-          <select value={game} onChange={(e) => setGame(e.target.value)}>
-            <option value="all">Все</option>
-            <option value="DIN">DIN</option>
-            <option value="VIR">VIR</option>
-            <option value="BOR">BOR</option>
-          </select>
-        </label>
+                <label>
+                По:
+                <input
+                    type="datetime-local"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                />
+                </label>
 
-        <button type="submit" className="filter-button">Поиск</button>
-      </form>
+                <label>
+                Игра:
+                <select value={game} onChange={(e) => setGame(e.target.value)}>
+                    <option value="all">Все</option>
+                    <option value="DIN">DIN</option>
+                    <option value="VIR">VIR</option>
+                    <option value="BOR">BOR</option>
+                </select>
+                </label>
+
+                <button type="submit" className="filter-button">Поиск</button>
+            </form>
+        </div>
+
+        {/* Отображение статистики */}
+        {mostLostLevels && ( // проверяем, что mostLostLevels существует и не пустой
+            <div className="stats-container" style={{ backgroundColor: '#fff3f3' }}>
+                <h3 style={{ color: '#c62828' }}>
+                Уровни с наибольшим числом поражений
+                </h3>
+                {mostLostLevels.levels.length > 0 ? ( // если есть уровни с поражениями, отображаем их
+                <>
+                    <p style={{ fontSize: '24px', margin: '10px 0', color: '#d32f2f' }}>
+                    {mostLostLevels.levels.join(', ')}
+                    </p>
+                    <p style={{ fontSize: '16px', color: '#b71c1c' }}>
+                    Количество поражений: {mostLostLevels.count}
+                    </p>
+                </>
+                ) : ( // если нет уровней с поражениями, отображаем сообщение
+                <p style={{ fontSize: '16px', color: '#b71c1c' }}>
+                    Количество поражений: 0
+                </p>
+                )}
+            </div>
+        )}
+
     </div>
   );
 };
