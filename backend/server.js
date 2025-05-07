@@ -138,7 +138,7 @@ app.post('/player-stats', async (req, res) => {
   
       // Строим запрос для получения статистики
       let query = `
-        SELECT play_history.*, levels.game_id
+        SELECT play_history.*, levels.game_id, levels.max_points, levels.min_points
         FROM play_history
         JOIN levels ON play_history.level_id = levels.level_id
         WHERE play_history.player_id = $1
@@ -165,7 +165,7 @@ app.post('/player-stats', async (req, res) => {
         query += ` AND levels.game_id = $${paramIndex}`;
         params.push(game);
       }
-      
+
       const result = await pool.query(query, params);
   
       if (result.rowCount === 0) {

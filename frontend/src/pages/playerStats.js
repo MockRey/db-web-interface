@@ -74,6 +74,26 @@ const PlayerStats = () => {
     return { levels: worstLevels, count: maxLosses };
   }, [stats]); 
 
+  const maxPointsRatio = useMemo(() => {
+    if (!stats || stats.length === 0) return { percentage: 0, total: 0, perfect: 0 };
+  
+    let total = 0;
+    let perfect = 0;
+  
+    stats.forEach(item => {
+      if (item.result === true) {
+        total += 1;
+        if (item.points === item.max_points) {
+          perfect += 1;
+        }
+      }
+    });
+  
+    const percentage = total > 0 ? Math.round((perfect / total) * 100) : 0;
+  
+    return { percentage, total, perfect };
+  }, [stats]);
+
   return (
     <div className="main">
 
@@ -123,29 +143,41 @@ const PlayerStats = () => {
             </form>
         </div>
 
-        {/* Отображение статистики */}
-        {mostLostLevels && ( // проверяем, что mostLostLevels существует и не пустой
-            <div className="stats-container" style={{ backgroundColor: '#fff3f3' }}>
-                <h3 style={{ color: '#c62828' }}>
-                Уровни с наибольшим числом поражений
-                </h3>
-                {mostLostLevels.levels.length > 0 ? ( // если есть уровни с поражениями, отображаем их
-                <>
-                    <p style={{ fontSize: '24px', margin: '10px 0', color: '#d32f2f' }}>
-                    {mostLostLevels.levels.join(', ')}
-                    </p>
+        <div className="stats">
+            {/* Отображение статистики */}
+            {mostLostLevels && ( // проверяем, что mostLostLevels существует и не пустой
+                <div className="stats-container" style={{ backgroundColor: '#fff3f3' }}>
+                    <h3 style={{ color: '#c62828' }}>
+                    Уровни с наибольшим числом поражений
+                    </h3>
+                    {mostLostLevels.levels.length > 0 ? ( // если есть уровни с поражениями, отображаем их
+                    <>
+                        <p style={{ fontSize: '24px', margin: '10px 0', color: '#d32f2f' }}>
+                        {mostLostLevels.levels.join(', ')}
+                        </p>
+                        <p style={{ fontSize: '16px', color: '#b71c1c' }}>
+                        Количество поражений: {mostLostLevels.count}
+                        </p>
+                    </>
+                    ) : ( // если нет уровней с поражениями, отображаем сообщение
                     <p style={{ fontSize: '16px', color: '#b71c1c' }}>
-                    Количество поражений: {mostLostLevels.count}
+                        Количество поражений: 0
                     </p>
-                </>
-                ) : ( // если нет уровней с поражениями, отображаем сообщение
-                <p style={{ fontSize: '16px', color: '#b71c1c' }}>
-                    Количество поражений: 0
-                </p>
-                )}
-            </div>
-        )}
+                    )}
+                </div>
+            )}
 
+            {maxPointsRatio && (
+                <div className="stats-container" style={{ backgroundColor: '#81C784' }}>
+                    <h3 style={{ color: '#1B1B1B' }}>
+                    % попыток с максимальным количеством набранных очков от всех пройденных уровней:
+                    </h3>
+                    <p style={{ fontSize: '16px', color: '#1B1B1B' }}>
+                    {maxPointsRatio.percentage}% ({maxPointsRatio.perfect} из {maxPointsRatio.total} попыток)
+                    </p>
+                </div>
+            )}
+        </div>
     </div>
   );
 };
