@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMemo } from 'react';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList } from 'recharts';
 import './playerStats.css';
 
 const PlayerStats = () => {
@@ -74,6 +75,7 @@ const PlayerStats = () => {
     return { levels: worstLevels, count: maxLosses };
   }, [stats]); 
 
+  // Функция для получения процента попыток с максимальным количеством набранных очков от всех пройденных уровней
   const maxPointsRatio = useMemo(() => {
     if (!stats || stats.length === 0) return { percentage: 0, total: 0, perfect: 0 };
   
@@ -92,6 +94,25 @@ const PlayerStats = () => {
     const percentage = total > 0 ? Math.round((perfect / total) * 100) : 0;
   
     return { percentage, total, perfect };
+  }, [stats]);
+
+  // Функция для получения количества попыток по играм
+  const attemptsPerGame = useMemo(() => {
+    if (!stats || stats.length === 0) return [];
+  
+    const gameCounts = {};
+  
+    stats.forEach(item => {
+      const gameId = item.game_id;
+      if (gameId) {
+        gameCounts[gameId] = (gameCounts[gameId] || 0) + 1;
+      }
+    });
+  
+    return Object.entries(gameCounts).map(([game, count]) => ({
+      game,
+      attempts: count,
+    }));
   }, [stats]);
 
   return (
@@ -175,6 +196,25 @@ const PlayerStats = () => {
                     <p style={{ fontSize: '16px', color: '#1B1B1B' }}>
                     {maxPointsRatio.percentage}% ({maxPointsRatio.perfect} из {maxPointsRatio.total} попыток)
                     </p>
+                </div>
+            )}
+
+            {attemptsPerGame && (
+                <div className="stats-container">
+                    <h3 className="chart-title">Количество попыток по играм</h3>
+                    <ResponsiveContainer width="100%" height={200}>
+                        <BarChart
+                        layout="vertical"
+                        data={attemptsPerGame}
+                        margin={{ top: 10, right: 30, left: 20, bottom: 10 }}
+                        >
+                        <XAxis type="number" />
+                        <YAxis dataKey="game" type="category" />
+                        <Bar dataKey="attempts" fill="#4F93E6">
+                            <LabelList dataKey="attempts" position="right" />
+                        </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
                 </div>
             )}
         </div>

@@ -30,4 +30,5 @@
 
 .stats {
     display: flex;
+    flex-wrap: wrap;
 }
