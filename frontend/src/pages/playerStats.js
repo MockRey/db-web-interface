@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import './playerStats.css';
 
 const PlayerStats = () => {
@@ -115,6 +116,35 @@ const PlayerStats = () => {
     }));
   }, [stats]);
 
+  // Функция для получения количества попыток по уровням (нескольких игр)
+  const attemptsPerLevel = useMemo(() => {
+    if (!stats || stats.length === 0) return [];
+
+  const levelCounts = {
+    '1': 0,
+    '2': 0,
+    '3': 0,
+    '4': 0,
+    '5': 0,
+  };
+
+  stats.forEach(item => {
+    const rawLevel = item.level_id;
+    const levelNum = rawLevel.split('-')[1]; // разделение названия уровня на части и получение второй части (числа уровня) 
+    const level = String(parseInt(levelNum, 10)); // приведение от строки к целому числу (1, 2, 3 и т.д.)
+
+    levelCounts[level] += 1;
+  });
+
+  const totalAttempts = Object.values(levelCounts).reduce((sum, count) => sum + count, 0);
+
+  return Object.entries(levelCounts).map(([level, count]) => ({
+    name: `Уровень ${level}`,
+    value: count,
+    percent: ((count / totalAttempts)).toFixed(3),
+  }));
+}, [stats]);
+
   return (
     <div className="main">
 
@@ -201,7 +231,7 @@ const PlayerStats = () => {
 
             {attemptsPerGame && (
                 <div className="stats-container">
-                    <h3 className="chart-title">Количество попыток по играм</h3>
+                    <h3>Распределение попыток по играм</h3>
                     <ResponsiveContainer width="100%" height={200}>
                         <BarChart
                         layout="vertical"
@@ -217,9 +247,36 @@ const PlayerStats = () => {
                     </ResponsiveContainer>
                 </div>
             )}
+            
+            {attemptsPerLevel && (
+                <div className="stats-container">
+                    <h3>Распределение попыток по уровням</h3>
+                    <PieChart width={420} height={300}>
+                    <Pie
+                        data={attemptsPerLevel}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={90}
+                        labelLine={false}
+                        label={({ percent }) => `${(percent * 100).toFixed(1)}%`}
+                    >
+                        {attemptsPerLevel.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={['#5D3FD3', '#228B22', '#B22222', '#1E90FF', '#8B008B'][index % ['#5D3FD3', '#228B22', '#B22222', '#1E90FF', '#8B008B'].length]} />
+                        ))}
+                    </Pie>
+                    <Tooltip
+                    formatter={(value, name, props) => `${value} попыток`}
+                    />
+                    <Legend layout="vertical" verticalAlign="middle" align="right"/>
+                    </PieChart>
+              </div>
+            )}
         </div>
     </div>
   );
 };
 
 export default PlayerStats;
+// ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#a4de6c']
