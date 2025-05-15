@@ -277,7 +277,7 @@ const PlayerStats = () => {
                     {attemptsPerLevel && (
                         <div className="stats-container" style={{ height: '300px' }}>
                             <h3 style={{ marginTop: '0', marginBottom: '0' }}>Распределение попыток по уровням</h3>
-                            <PieChart width={420} height={300}>
+                            <PieChart width={450} height={300}>
                             <Pie
                                 data={attemptsPerLevel}
                                 dataKey="value"

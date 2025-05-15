@@ -121,57 +121,160 @@ const QueryBuilder = () => { //
     loadTemplates(); // вызываем функцию загрузки шаблонов
   }, []); // пустой массив вторым параметром означает, что эффект будет выполнен только один раз при монтировании компонента
 
-  return (
-    <div className="App"> {/* className можно использовать для настройки стилей в App.css */}
-      <h1>Конструктор запросов</h1>
-      <h2>Форма ввода:</h2>
-      
-      <form onSubmit={handleSubmit}> {/* функция handleSubmit выполняется при отправке формы */}
-        <textarea
-          value={sql}
-          onChange={(e) => setSql(e.target.value)} // функция onChange вызывает изменение переменной sql при каждом (побуквенном) изменении содержимого textarea
-          rows="4" // количество строк в поле ввода
-          cols="50" // ширина поля ввода
-          placeholder="Введите ваш SQL-запрос здесь"
-        />
-        <br />
-        <button type="submit">Выполнить запрос</button> {/* тип кнопки показывает, что она используется для отправки формы */}
-        <button onClick={createTemplate}>Сохранить шаблон</button> {/* при клике на кнопку вызывается функция createTemplate для создания нового шаблона */}
-      </form>
+  const downloadCSV = () => {
+    if (!result || result.length === 0) return;
 
-      <h2>Сохранённые шаблоны:</h2>
-      <div>
-        {templates.map((template) => ( // функция map применяется к массиву templates и возвращает массив кнопок с названиями шаблонов
-          <div key={template.id}> {/* атрибут key необходим при парсинге массива; в данном случае - id шаблона */}
-            <button onClick={() => handleTemplate(template.sql)}> {/* при клике на кнопку вызывается функция handleTemplate и подставляет запрос в форму */}
-              {template.name}
-            </button>
-            <button onClick={() => deleteTemplate(template.id)} style={{ background: "red", color: "white" }}> {/*  */}
-              Удалить
-            </button>
+    const headers = Object.keys(result[0]).join(',');
+    const rows = result.map(row => Object.values(row).join(','));
+    const csvContent = [headers, ...rows].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'query_result.csv';
+    link.click();
+
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div>
+      <h1 style={{ marginBottom: '0' }}>Конструктор запросов</h1>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '710px', width: '100%' }}>
+        <div style={{ display: 'flex', flex: 1, maxHeight: '200px' }}>
+          <div style={{ flex: 1, marginRight: '4px' }}>
+            <h2>Форма ввода:</h2>
+            <form onSubmit={handleSubmit}> {/* функция handleSubmit выполняется при отправке формы */}
+              <textarea
+                style={{ height: '100px' }}
+                value={sql}
+                onChange={(e) => setSql(e.target.value)} // функция onChange вызывает изменение переменной sql при каждом (побуквенном) изменении содержимого textarea
+                rows="4" // количество строк в поле ввода
+                cols="50" // ширина поля ввода
+                placeholder="Введите ваш SQL-запрос здесь"
+              />
+              <br />
+              <button type="submit">Выполнить запрос</button> {/* тип кнопки показывает, что она используется для отправки формы */}
+              <button onClick={createTemplate}>Сохранить шаблон</button> {/* при клике на кнопку вызывается функция createTemplate для создания нового шаблона */}
+            </form>
           </div>
-        ))}
+
+          <div style={{ flex: 1, marginLeft: '4px' }}>
+            <h2>Сохранённые шаблоны:</h2>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <div style={{ maxHeight: '110px', overflowY: 'auto', border: '1px solid #000', borderRadius: '4px', padding: '10px', width: '70%' }}>
+                {templates.map((template) => ( // функция map применяется к массиву templates и возвращает массив кнопок с названиями шаблонов
+                  <div key={template.id}> {/* атрибут key необходим при парсинге массива; в данном случае - id шаблона */}
+                    <button onClick={() => handleTemplate(template.sql)}> {/* при клике на кнопку вызывается функция handleTemplate и подставляет запрос в форму */}
+                      {template.name}
+                    </button>
+                    <button onClick={() => deleteTemplate(template.id)} style={{ background: "red", color: "white" }}> {/*  */}
+                      Удалить
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ height: '100%' }}>
+          <h2>Результат запроса:</h2>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '0 10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', maxHeight: '425px', overflowY: 'auto', maxWidth: 'fit-content' }}>
+              <table border="1"> {/* создание таблицы с минимальной границей */}
+                  <thead> {/* тег настройки шапки HTML-таблицы */}
+                  <tr> {/* тег строки таблицы */}
+                      {result.length > 0 && Object.keys(result[0]).map((key) => <th key={key}>{key}</th>)} {/* если в переменной (массиве) result есть элементы (... > 0), то создаём шапку таблицы с ключами объекта (ключами станут названия столбцов из JSONа с бэкенда); th - тег заголовка таблицы */}
+                  </tr>
+                  </thead>
+                  <tbody> {/* тег тела таблицы */}
+                  {result.map((row, index) => ( // функция map применяется к массиву result и возвращает массив строк таблицы
+                      <tr key={index}> {/* tr - тег строки таблицы */}
+                      {Object.values(row).map((value, idx) => <td key={idx}>{typeof value === 'boolean' ? (value ? 'Completed' : 'Failed') : value}</td>)} {/* td - тег ячейки таблицы; из-за бага добавлено условие: если значение в ячейке - булево, то вместо true/false выводится Completed/Failed */}
+                      </tr>
+                  ))}
+                  </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <h2>Результат запроса:</h2>
-      <div className='result-table'> {/* div с классом result-table для настройки стилей в App.css */}
-        <table border="1"> {/* создание таблицы с минимальной границей */}
-            <thead> {/* тег настройки шапки HTML-таблицы */}
-            <tr> {/* тег строки таблицы */}
-                {result.length > 0 && Object.keys(result[0]).map((key) => <th key={key}>{key}</th>)} {/* если в переменной (массиве) result есть элементы (... > 0), то создаём шапку таблицы с ключами объекта (ключами станут названия столбцов из JSONа с бэкенда); th - тег заголовка таблицы */}
-            </tr>
-            </thead>
-            <tbody> {/* тег тела таблицы */}
-            {result.map((row, index) => ( // функция map применяется к массиву result и возвращает массив строк таблицы
-                <tr key={index}> {/* tr - тег строки таблицы */}
-                {Object.values(row).map((value, idx) => <td key={idx}>{typeof value === 'boolean' ? (value ? 'Completed' : 'Failed') : value}</td>)} {/* td - тег ячейки таблицы; из-за бага добавлено условие: если значение в ячейке - булево, то вместо true/false выводится Completed/Failed */}
-                </tr>
-            ))}
-            </tbody>
-        </table>
+      <div>
+        <button
+            onClick={downloadCSV}
+            style={{
+            backgroundColor: '#28a745',
+            color: 'white',
+            padding: '10px 20px',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '16px',
+            cursor: 'pointer',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+            }}
+        >
+            Скачать статистику (CSV)
+        </button>
       </div>
     </div>
   );
 }
+
+//   return (
+//     <div className="App"> {/* className можно использовать для настройки стилей в App.css */}
+//       <h1>Конструктор запросов</h1>
+//       <h2>Форма ввода:</h2>
+      
+//       <form onSubmit={handleSubmit}> {/* функция handleSubmit выполняется при отправке формы */}
+//         <textarea
+//           value={sql}
+//           onChange={(e) => setSql(e.target.value)} // функция onChange вызывает изменение переменной sql при каждом (побуквенном) изменении содержимого textarea
+//           rows="4" // количество строк в поле ввода
+//           cols="50" // ширина поля ввода
+//           placeholder="Введите ваш SQL-запрос здесь"
+//         />
+//         <br />
+//         <button type="submit">Выполнить запрос</button> {/* тип кнопки показывает, что она используется для отправки формы */}
+//         <button onClick={createTemplate}>Сохранить шаблон</button> {/* при клике на кнопку вызывается функция createTemplate для создания нового шаблона */}
+//       </form>
+
+//       <h2>Сохранённые шаблоны:</h2>
+//       <div>
+//         {templates.map((template) => ( // функция map применяется к массиву templates и возвращает массив кнопок с названиями шаблонов
+//           <div key={template.id}> {/* атрибут key необходим при парсинге массива; в данном случае - id шаблона */}
+//             <button onClick={() => handleTemplate(template.sql)}> {/* при клике на кнопку вызывается функция handleTemplate и подставляет запрос в форму */}
+//               {template.name}
+//             </button>
+//             <button onClick={() => deleteTemplate(template.id)} style={{ background: "red", color: "white" }}> {/*  */}
+//               Удалить
+//             </button>
+//           </div>
+//         ))}
+//       </div>
+
+//       <h2>Результат запроса:</h2>
+//       <div className='result-table'> {/* div с классом result-table для настройки стилей в App.css */}
+//         <table border="1"> {/* создание таблицы с минимальной границей */}
+//             <thead> {/* тег настройки шапки HTML-таблицы */}
+//             <tr> {/* тег строки таблицы */}
+//                 {result.length > 0 && Object.keys(result[0]).map((key) => <th key={key}>{key}</th>)} {/* если в переменной (массиве) result есть элементы (... > 0), то создаём шапку таблицы с ключами объекта (ключами станут названия столбцов из JSONа с бэкенда); th - тег заголовка таблицы */}
+//             </tr>
+//             </thead>
+//             <tbody> {/* тег тела таблицы */}
+//             {result.map((row, index) => ( // функция map применяется к массиву result и возвращает массив строк таблицы
+//                 <tr key={index}> {/* tr - тег строки таблицы */}
+//                 {Object.values(row).map((value, idx) => <td key={idx}>{typeof value === 'boolean' ? (value ? 'Completed' : 'Failed') : value}</td>)} {/* td - тег ячейки таблицы; из-за бага добавлено условие: если значение в ячейке - булево, то вместо true/false выводится Completed/Failed */}
+//                 </tr>
+//             ))}
+//             </tbody>
+//         </table>
+//       </div>
+//     </div>
+//   );
+// }
 
 export default QueryBuilder; // Экспортируем компонент queryBuilder по умолчанию, чтобы его можно было использовать в других файлах
