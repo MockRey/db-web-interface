@@ -11,7 +11,7 @@ const QueryBuilder = () => { //
   const [result, setResult] = useState([]);
   const [templates, setTemplates] = useState([]);
 
-  // Асинхронная функция для отправки SQL-запроса
+  // Асинхронная функция для отправки SQL-запроса на вывод
   const handleSubmit = async (e) => { // параметр e - событие в браузере (в нашем случае - нажатие на кнопку отправки формы)
     e.preventDefault(); // Отменяем стандартное поведение браузера при отправке формы на бэкенд (перезагрузку страницы)
     
@@ -30,6 +30,31 @@ const QueryBuilder = () => { //
       // Получаем ответ от сервера
       const data = await response.json(); // ждём завершения промиса и преобразуем ответ в JSON
       setResult(data.data || []); // обновляем переменную result (в начале был пустой массив), передавая в неё данные из ответа сервера (или пустой массив, если данных нет)
+    }
+    
+    catch (error) {
+      console.error("Ошибка при выполнении SQL-запроса:", error);
+      alert("Произошла ошибка при выполнении SQL-запроса.");
+    }
+  };
+
+  // Асинхронная функция для отправки SQL-запроса на скачивание
+  const handleSubmitDownload = async() => {
+    
+    try {
+      const response = await fetch('http://localhost:3000/download-query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sql })
+      });
+
+      if (!response.ok) {
+        throw new Error(`${response.status} ${response.statusText}`);
+      }
+
+      // Получаем ответ от сервера
+      const data = await response.json();
+      setResult(data.data || []);
     }
     
     catch (error) {
@@ -122,6 +147,7 @@ const QueryBuilder = () => { //
   }, []); // пустой массив вторым параметром означает, что эффект будет выполнен только один раз при монтировании компонента
 
   const downloadCSV = () => {
+    handleSubmitDownload();
     if (!result || result.length === 0) return;
 
     const headers = Object.keys(result[0]).join(',');
@@ -217,7 +243,7 @@ const QueryBuilder = () => { //
             boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
             }}
         >
-            Скачать статистику (CSV)
+            Скачать результат запроса (CSV)
         </button>
       </div>
     </div>
