@@ -58,38 +58,9 @@ app.post('/query', async (req, res) => {
         }
 
         // Выполняем SQL-запрос и ограничиваем результат 100 строками
-        const result = await pool.query(sql + ' LIMIT 100'); // Выполняем запрос к базе данных
+        const result = await pool.query(sql); // Выполняем запрос к базе данных
         if (result.rowCount === 0) { // Проверяем, есть ли данные в результате запроса
             return res.status(404).json({ error: 'Нет данных для отображения' }); // Возвращаем 404-ю ошибку клиенту
-        }
-
-        res.json({ data: result.rows }); // Возвращаем результат запроса в формате JSON; в переменную data попадает ответ по запросу к БД
-    }
-
-    catch (err) { // Обработка ошибок
-        console.error('❌ Ошибка выполнения SQL-запроса:', err); // Выводим ошибку в консоль (СЕРВЕРА!!! - браузер не отобразит)
-        res.status(500).json({ error: 'Ошибка выполнения SQL-запроса' }); // Возвращаем ошибку клиенту
-    }
-});
-
-// Эндпоинт для передачи результата запроса на скачивание (без лимита на 100 строк, в отличие от эндпоинта сверху)
-app.post('/download-query', async (req, res) => {
-    try {
-        const { sql } = req.body; // Получаем SQL-запрос из тела запроса
-        if (!sql) { // Проверяем, что SQL-запрос не пустой
-            return res.status(400).json({ error: 'SQL-запрос не должен быть пустым' });
-        }
-
-        const forbiddenCommands = ['DELETE', 'DROP', 'ALTER', 'TRUNCATE', 'UPDATE', 'INSERT'];
-        const normalizedSQL = sql.trim().toUpperCase(); // Приводим к верхнему регистру для проверки
-
-        if (forbiddenCommands.some(cmd => normalizedSQL.startsWith(cmd))) {
-            return res.status(403).json({ error: 'Запрос содержит запрещённую команду!' });
-        }
-
-        const result = await pool.query(sql);
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: 'Нет данных для отображения' });
         }
 
         res.json({ data: result.rows }); // Возвращаем результат запроса в формате JSON; в переменную data попадает ответ по запросу к БД

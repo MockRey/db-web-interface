@@ -46,7 +46,6 @@ const PlayerStats = () => {
         const data = await response.json();
         setStats(data.stats);
         console.log('Ответ от сервера:', data);
-        // Здесь потом будем строить графики на основе полученных данных
     }
 
     catch (error) {
@@ -57,7 +56,7 @@ const PlayerStats = () => {
   
   // Функция для получения уровней с наибольшим числом поражений
   const mostLostLevels = useMemo(() => { // useMemo - хук, который позволяет оптимизировать производительность, запоминает результат функции и пересчитывает его только при изменении переменной stats)
-    if (!stats || stats.length === 0) return { levels: [], count: 0 }; // если нет данных, возвращаем пустой массив и 0 (нужна ли эта строка?)
+    if (!stats || stats.length === 0) return null; // если нет данных, возвращаем пустой массив и 0 (нужна ли эта строка?)
   
     const losses = stats.filter(item => item.result === false); // фильтруем массив stats, оставляя только те элементы, где результат - поражение (false)
   
@@ -78,7 +77,7 @@ const PlayerStats = () => {
 
   // Функция для получения процента попыток с максимальным количеством набранных очков от всех пройденных уровней
   const maxPointsRatio = useMemo(() => {
-    if (!stats || stats.length === 0) return { percentage: 0, total: 0, perfect: 0 };
+    if (!stats || stats.length === 0) return null;
   
     let total = 0;
     let perfect = 0;
@@ -99,7 +98,7 @@ const PlayerStats = () => {
 
   // Функция для получения количества попыток по играм
   const attemptsPerGame = useMemo(() => {
-    if (!stats || stats.length === 0) return [];
+    if (!stats || stats.length === 0) return null;
   
     const gameCounts = {};
   
@@ -118,7 +117,7 @@ const PlayerStats = () => {
 
   // Функция для получения количества попыток по уровням (нескольких игр)
   const attemptsPerLevel = useMemo(() => {
-    if (!stats || stats.length === 0) return [];
+    if (!stats || stats.length === 0) return null;
 
     const levelCounts = {
         '1': 0,
@@ -147,7 +146,7 @@ const PlayerStats = () => {
 
   // Функция для скачивания CSV-файла
   const downloadCSV = () => {
-    if (!stats || stats.length === 0) return;
+    if (!stats || stats.length === 0) return null;
 
     const headers = Object.keys(stats[0]).join(',');
     const rows = stats.map(row => Object.values(row).join(','));
@@ -163,6 +162,59 @@ const PlayerStats = () => {
 
     URL.revokeObjectURL(url);
   };
+
+    // Функция для расчёта общего времени в игре и максимального времени на уровне
+  const timeStats = useMemo(() => {
+    if (!stats || stats.length === 0) return null;
+    
+    let totalTime = 0;
+    let maxAttemptDuration = 0;
+    let longestAttemptLevel = "";
+    // const levelDurations = {};
+    
+    stats.forEach(({ level_id, start_time, end_time }) => {
+        if (!start_time || !end_time) return;
+    
+        const start = new Date(start_time);
+        const end = new Date(end_time);
+        const duration = Math.max(0, (end - start) / 1000); // в секундах
+    
+        totalTime += duration;
+
+        if (duration > maxAttemptDuration) {
+            maxAttemptDuration = duration;
+            longestAttemptLevel = level_id;
+        }
+
+        // levelDurations[level_id] = (levelDurations[level_id] || 0) + duration;
+    });
+    
+    // const [longestLevel, maxDuration] = Object.entries(levelDurations).reduce(
+    //     (max, entry) => (entry[1] > max[1] ? entry : max),
+    //     ["", 0]
+    // );
+    
+    const formatTime = seconds => {
+        const hours = Math.floor(seconds/3600)
+        const minutes = Math.floor(seconds / 60) - hours * 60;
+        const secs = Math.round(seconds % 60);
+
+        if (hours > 0) {
+        return `${hours} ч ${minutes} мин ${secs} сек`;
+        } else if (minutes > 0) {
+        return `${minutes} мин ${secs} сек`;
+        }
+        return `${secs} сек`;
+    };
+    
+    return {
+        total: formatTime(totalTime),
+        longestLevel: longestAttemptLevel,
+        longestLevelTime: formatTime(maxAttemptDuration),
+        // longestLevel,
+        // longestLevelTime: formatTime(maxDuration),
+    };
+  }, [stats]);
 
     return (
         <div className="main">
@@ -251,6 +303,22 @@ const PlayerStats = () => {
                         </div>
                     )}
 
+                    {timeStats && (
+                        <div className="stats-container" style={{ backgroundColor: '#fff3f3' }}>
+                            <h3 style={{ color: '#c62828' }}>
+                            Общее время в игре
+                            </h3>
+                            <>
+                                <p style={{ fontSize: '24px', margin: '10px 0', color: '#d32f2f' }}>
+                                {timeStats.total}
+                                </p>
+                                <p style={{ fontSize: '16px', color: '#b71c1c' }}>
+                                Самая долгая попытка ({timeStats.longestLevel}): {timeStats.longestLevelTime}
+                                </p>
+                            </>
+                        </div>
+                    )}
+
                     </div>
 
                     <div style={{ flex: 1, marginLeft: '4px' }}>
@@ -297,32 +365,34 @@ const PlayerStats = () => {
                             />
                             <Legend layout="vertical" verticalAlign="middle" align="right"/>
                             </PieChart>
-                    </div>
+                        </div>
                     )}
 
                     </div>
                 </div>
 
                 {/* Нижняя полоса и кнопка для скачивания*/}
-                <div style={{
-                    height: '45px',
-                    }}>
-                    <button
-                        onClick={downloadCSV}
-                        style={{
-                        backgroundColor: '#28a745',
-                        color: 'white',
-                        padding: '10px 20px',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '16px',
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
-                        }}
-                    >
-                        Скачать выборку (CSV)
-                    </button>
-                </div>
+                {attemptsPerLevel && (
+                    <div style={{
+                        height: '45px',
+                        }}>
+                        <button
+                            onClick={downloadCSV}
+                            style={{
+                            backgroundColor: '#28a745',
+                            color: 'white',
+                            padding: '10px 20px',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '16px',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                            }}
+                        >
+                            Скачать выборку (CSV)
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     )

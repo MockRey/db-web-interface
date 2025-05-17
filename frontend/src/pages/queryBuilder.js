@@ -9,6 +9,7 @@ const QueryBuilder = () => { //
   // вторая позиция - функция для изменения значения переменной, которая применится дальше в коде
   const [sql, setSql] = useState('');
   const [result, setResult] = useState([]);
+  const [result100, setResult100] = useState([]);
   const [templates, setTemplates] = useState([]);
 
   // Асинхронная функция для отправки SQL-запроса на вывод
@@ -24,37 +25,16 @@ const QueryBuilder = () => { //
       });
 
       if (!response.ok) {
-        throw new Error(`${response.status} ${response.statusText}`); // если ответ от сервера не успешный, то выбрасываем ошибку с кодом ответа и текстом
+        const errorData = await response.json();
+        alert(errorData.error || 'Произошла ошибка');  // если ответ от сервера не успешный, то выбрасываем текст ошибки в alert
+        return; // выходим из функции, чтобы не продолжать выполнение кода
+        // throw new Error(`${response.status} ${response.statusText}`);
       }
 
       // Получаем ответ от сервера
       const data = await response.json(); // ждём завершения промиса и преобразуем ответ в JSON
       setResult(data.data || []); // обновляем переменную result (в начале был пустой массив), передавая в неё данные из ответа сервера (или пустой массив, если данных нет)
-    }
-    
-    catch (error) {
-      console.error("Ошибка при выполнении SQL-запроса:", error);
-      alert("Произошла ошибка при выполнении SQL-запроса.");
-    }
-  };
-
-  // Асинхронная функция для отправки SQL-запроса на скачивание
-  const handleSubmitDownload = async() => {
-    
-    try {
-      const response = await fetch('http://localhost:3000/download-query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sql })
-      });
-
-      if (!response.ok) {
-        throw new Error(`${response.status} ${response.statusText}`);
-      }
-
-      // Получаем ответ от сервера
-      const data = await response.json();
-      setResult(data.data || []);
+      setResult100(data.data.slice(0, 100) || []); // обновляем переменную result100 (в начале был пустой массив), передавая в неё первые 100 строк из ответа сервера (или пустой массив, если данных нет)
     }
     
     catch (error) {
@@ -147,7 +127,6 @@ const QueryBuilder = () => { //
   }, []); // пустой массив вторым параметром означает, что эффект будет выполнен только один раз при монтировании компонента
 
   const downloadCSV = () => {
-    handleSubmitDownload();
     if (!result || result.length === 0) return;
 
     const headers = Object.keys(result[0]).join(',');
@@ -207,17 +186,18 @@ const QueryBuilder = () => { //
         </div>
 
         <div style={{ height: '100%' }}>
-          <h2>Результат запроса:</h2>
+          {result100.length === 100 ? (<h2>Результат запроса (первые 100 строк):</h2>) : (<h2>Результат запроса:</h2>)}
+          {result100.length > 0 && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '0 10px' }}>
             <div style={{ display: 'flex', justifyContent: 'center', maxHeight: '425px', overflowY: 'auto', maxWidth: 'fit-content' }}>
               <table border="1"> {/* создание таблицы с минимальной границей */}
                   <thead> {/* тег настройки шапки HTML-таблицы */}
                   <tr> {/* тег строки таблицы */}
-                      {result.length > 0 && Object.keys(result[0]).map((key) => <th key={key}>{key}</th>)} {/* если в переменной (массиве) result есть элементы (... > 0), то создаём шапку таблицы с ключами объекта (ключами станут названия столбцов из JSONа с бэкенда); th - тег заголовка таблицы */}
+                      {result100.length > 0 && Object.keys(result100[0]).map((key) => <th key={key}>{key}</th>)} {/* если в переменной (массиве) result есть элементы (... > 0), то создаём шапку таблицы с ключами объекта (ключами станут названия столбцов из JSONа с бэкенда); th - тег заголовка таблицы */}
                   </tr>
                   </thead>
                   <tbody> {/* тег тела таблицы */}
-                  {result.map((row, index) => ( // функция map применяется к массиву result и возвращает массив строк таблицы
+                  {result100.map((row, index) => ( // функция map применяется к массиву result и возвращает массив строк таблицы
                       <tr key={index}> {/* tr - тег строки таблицы */}
                       {Object.values(row).map((value, idx) => <td key={idx}>{typeof value === 'boolean' ? (value ? 'Completed' : 'Failed') : value}</td>)} {/* td - тег ячейки таблицы; из-за бага добавлено условие: если значение в ячейке - булево, то вместо true/false выводится Completed/Failed */}
                       </tr>
@@ -226,10 +206,12 @@ const QueryBuilder = () => { //
               </table>
             </div>
           </div>
+          )}
         </div>
       </div>
 
       <div>
+        {result.length > 0 && (
         <button
             onClick={downloadCSV}
             style={{
@@ -245,6 +227,7 @@ const QueryBuilder = () => { //
         >
             Скачать результат запроса (CSV)
         </button>
+        )}
       </div>
     </div>
   );
