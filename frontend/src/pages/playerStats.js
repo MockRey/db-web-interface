@@ -170,14 +170,15 @@ const PlayerStats = () => {
     let totalTime = 0;
     let maxAttemptDuration = 0;
     let longestAttemptLevel = "";
-    // const levelDurations = {};
+    let minAttemptDuration = 1000000000;
+    let shortestAttemptLevel = "";
     
     stats.forEach(({ level_id, start_time, end_time }) => {
         if (!start_time || !end_time) return;
     
         const start = new Date(start_time);
         const end = new Date(end_time);
-        const duration = Math.max(0, (end - start) / 1000); // в секундах
+        const duration = (end - start) / 1000; // в секундах
     
         totalTime += duration;
 
@@ -186,13 +187,11 @@ const PlayerStats = () => {
             longestAttemptLevel = level_id;
         }
 
-        // levelDurations[level_id] = (levelDurations[level_id] || 0) + duration;
+        if (duration < minAttemptDuration) {
+            minAttemptDuration = duration;
+            shortestAttemptLevel = level_id;
+        }
     });
-    
-    // const [longestLevel, maxDuration] = Object.entries(levelDurations).reduce(
-    //     (max, entry) => (entry[1] > max[1] ? entry : max),
-    //     ["", 0]
-    // );
     
     const formatTime = seconds => {
         const hours = Math.floor(seconds/3600)
@@ -211,8 +210,8 @@ const PlayerStats = () => {
         total: formatTime(totalTime),
         longestLevel: longestAttemptLevel,
         longestLevelTime: formatTime(maxAttemptDuration),
-        // longestLevel,
-        // longestLevelTime: formatTime(maxDuration),
+        shortestLevel: shortestAttemptLevel,
+        shortestLevelTime: formatTime(minAttemptDuration),
     };
   }, [stats]);
 
@@ -315,6 +314,9 @@ const PlayerStats = () => {
                                 <p style={{ fontSize: '16px', color: '#b71c1c' }}>
                                 Самая долгая попытка ({timeStats.longestLevel}): {timeStats.longestLevelTime}
                                 </p>
+                                <p style={{ fontSize: '16px', color: '#b71c1c' }}>
+                                Самая короткая попытка ({timeStats.shortestLevel}): {timeStats.shortestLevelTime}
+                                </p>
                             </>
                         </div>
                     )}
@@ -343,7 +345,7 @@ const PlayerStats = () => {
                     )}
                     
                     {attemptsPerLevel && (
-                        <div className="stats-container" style={{ height: '300px' }}>
+                        <div className="stats-container" style={{ height: '277px' }}>
                             <h3 style={{ marginTop: '0', marginBottom: '0' }}>Распределение попыток по уровням</h3>
                             <PieChart width={450} height={300}>
                             <Pie
@@ -374,7 +376,7 @@ const PlayerStats = () => {
                 {/* Нижняя полоса и кнопка для скачивания*/}
                 {attemptsPerLevel && (
                     <div style={{
-                        height: '45px',
+                        height: '55px',
                         }}>
                         <button
                             onClick={downloadCSV}
