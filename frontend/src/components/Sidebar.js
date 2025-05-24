@@ -8,6 +8,7 @@ const Sidebar = () => {
       <ul>
         <li><Link to="/querybuilder">Конструктор запросов</Link></li>
         <li><Link to="/playerstats">Статистика игрока</Link></li>
+        <li><Link to="/gamestats">Статистика игры</Link></li>
         {/* Здесь можно добавить больше страниц в будущем */}
       </ul>
     </div>

@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './Layout';
 import QueryBuilder from './pages/queryBuilder';
 import PlayerStats from './pages/playerStats';
+import GameStats from './pages/gameStats';
 import './App.css';
 
 function App() {
@@ -11,6 +12,7 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route path="querybuilder" element={<QueryBuilder />} />
           <Route path="playerstats" element={<PlayerStats />} />
+          <Route path="gamestats" element={<GameStats />} />
           <Route path="*" element={<div className='not-found'>Ошибка 404: Такой страницы не существует</div>} />
         </Route>
       </Routes>

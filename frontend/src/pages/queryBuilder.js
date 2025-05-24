@@ -126,6 +126,7 @@ const QueryBuilder = () => { //
     loadTemplates(); // вызываем функцию загрузки шаблонов
   }, []); // пустой массив вторым параметром означает, что эффект будет выполнен только один раз при монтировании компонента
 
+  // Функция для скачивания результата запроса в формате CSV
   const downloadCSV = () => {
     if (!result || result.length === 0) return;
 
@@ -143,6 +144,12 @@ const QueryBuilder = () => { //
 
     URL.revokeObjectURL(url);
   };
+
+  // Функция для открытия схемы базы данных в новой вкладке
+  const openSchema = async (e) => {
+    e.preventDefault();
+    window.open('/db_schema.png', '_blank');
+  }
 
   return (
     <div>
@@ -163,6 +170,7 @@ const QueryBuilder = () => { //
               <br />
               <button type="submit">Выполнить запрос</button> {/* тип кнопки показывает, что она используется для отправки формы */}
               <button onClick={createTemplate}>Сохранить шаблон</button> {/* при клике на кнопку вызывается функция createTemplate для создания нового шаблона */}
+              <button onClick={openSchema}>Схема БД</button> {/* открытие схемы данных через кнопку */}
             </form>
           </div>
 
