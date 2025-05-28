@@ -180,4 +180,48 @@ app.post('/player-stats', async (req, res) => {
       res.status(500).json({ error: 'Ошибка получения статистики игрока' });
     }
   });
+
+// Эндпоинт для фильтрации play_history и передачи данных по игре
+app.post('/game-stats', async (req, res) => {
+    const { gameId, startDate, endDate } = req.body;
   
+    try {
+      // Строим запрос для получения статистики
+      let query = `
+        SELECT play_history.*, levels.game_id, players.region, players.registration_date
+        FROM play_history
+        JOIN levels ON play_history.level_id = levels.level_id
+        JOIN players ON play_history.player_id = players.player_id
+        WHERE levels.game_id = $1
+      `;
+      const params = [gameId];
+      let paramIndex = 2; // счётчик индексов, 2 - это следующий индекс после $1
+
+      // Добавляем фильтр по startDate, если он передан
+        if (startDate) {
+            query += ` AND play_history.start_time >= $${paramIndex}`;
+            params.push(startDate);
+            paramIndex++;
+        }
+
+      // Добавляем фильтр по endDate, если он передан
+        if (endDate) {
+            query += ` AND play_history.end_time <= $${paramIndex}`;
+            params.push(endDate);
+            paramIndex++;
+        }
+
+      const result = await pool.query(query, params);
+  
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: 'Нет данных по указанным условиям' });
+      }
+  
+      res.json({ stats: result.rows });
+    } 
+    
+    catch (err) {
+      console.error('❌ Ошибка при получении статистики игрока:', err);
+      res.status(500).json({ error: 'Ошибка получения статистики игрока' });
+    }
+  });

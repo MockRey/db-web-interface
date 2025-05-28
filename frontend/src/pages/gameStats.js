@@ -1,20 +1,12 @@
 import { useState } from 'react';
 import { useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList } from 'recharts';
-import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import './gameStats.css';
 
 const GameStats = () => {
-  const [gameId, setGameId] = useState('all');
+  const [gameId, setGameId] = useState('DIN');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [level, setLevel] = useState('all');
   const [stats, setStats] = useState([]);
-  const levelOptions = {
-    DIN: ['DIN-001', 'DIN-002', 'DIN-003', 'DIN-004', 'DIN-005'],
-    VIR: ['VIR-001', 'VIR-002', 'VIR-003', 'VIR-004', 'VIR-005'],
-    BOR: ['BOR-001', 'BOR-002', 'BOR-003', 'BOR-004', 'BOR-005'],
-  };
   
   // Асинхронная функция для обработки отправки формы с данными по игроку
   const handleGameSearch = async (e) => {
@@ -31,11 +23,10 @@ const GameStats = () => {
         gameId,
         startDate,
         endDate,
-        level,
     };
 
     try {
-        const response = await fetch('http://localhost:3000/player-stats', {
+        const response = await fetch('http://localhost:3000/game-stats', {
         method: 'POST',
         headers: {  'Content-Type': 'application/json'  },
         body: JSON.stringify(searchData),
@@ -58,146 +49,54 @@ const GameStats = () => {
         alert("Произошла ошибка при получении статистики игрока.");
     }
   };
-  
-  // Функция для получения уровней с наибольшим числом поражений
-  const mostLostLevels = useMemo(() => { // useMemo - хук, который позволяет оптимизировать производительность, запоминает результат функции и пересчитывает его только при изменении переменной stats)
-    if (!stats || stats.length === 0) return null; // если нет данных, возвращаем пустой массив и 0 (нужна ли эта строка?)
-  
-    const losses = stats.filter(item => item.result === false); // фильтруем массив stats, оставляя только те элементы, где результат - поражение (false)
-  
-    const lossCounts = {}; // создаём объект для хранения количества поражений по уровням, перебираем массив losses и считаем количество поражений по каждому уровню
-    losses.forEach(item => {
-      const level = item.level_id;
-      lossCounts[level] = (lossCounts[level] || 0) + 1; // если уровень уже есть в объекте, увеличиваем его значение на 1, если нет - создаём его со значением 1
-    });
-  
-    const maxLosses = Math.max(...Object.values(lossCounts)); // находим максимальное количество поражений среди всех уровней
-  
-    const worstLevels = Object.entries(lossCounts) // преобразуем объект lossCounts в массив пар [ключ, значение], где ключ - это уровень, а значение - количество поражений
-      .filter(([_, count]) => count === maxLosses) // фильтруем массив, оставляя только те пары, где количество поражений равно максимальному
-      .map(([levelId]) => levelId); // преобразуем массив пар обратно в массив уровней, оставляя только ключи (уровни)
-  
-    return { levels: worstLevels, count: maxLosses };
-  }, [stats]); 
 
-  // Функция для получения процента попыток с максимальным количеством набранных очков от всех пройденных уровней
-  const maxPointsRatio = useMemo(() => {
+  // Асинхронная функция для вычисления метрик игры
+  const useGameMetrics = useMemo(() => {
     if (!stats || stats.length === 0) return null;
-  
-    let total = 0;
-    let perfect = 0;
-  
+
+    // Количество попыток
+    const totalAttempts = stats.length;
+
+    // Процент успешных попыток
+    const successfulAttempts = stats.filter(item => item.result === true).length;
+    const successRate = (successfulAttempts / totalAttempts) * 100;
+
+    // Количество уникальных игроков
+    const uniquePlayers = new Set(stats.map(item => item.player_id)).size;
+
+    // Количество новых игроков
+    const start = stats.start_time ? new Date(stats.start_time) : null; // Преобразуем start_time и end_time в объекты Date (если они есть)
+    const end = stats.end_time ? new Date(stats.end_time) : null;
+
+    const newPlayerIds = new Set();
     stats.forEach(item => {
-      if (item.result === true) {
-        total += 1;
-        if (item.points === item.max_points) {
-          perfect += 1;
-        }
-      }
+    const regDate = new Date(item.registration_date);
+    if (
+        regDate &&
+        (!start || regDate >= start) &&
+        (!end || regDate <= end)
+    ) {
+        newPlayerIds.add(item.player_id);
+    }
     });
-  
-    const percentage = total > 0 ? Math.round((perfect / total) * 100) : 0;
-  
-    return { percentage, total, perfect };
-  }, [stats]);
+    const newPlayers = newPlayerIds.size;
 
-  // Функция для получения количества попыток по играм
-  const attemptsPerGame = useMemo(() => {
-    if (!stats || stats.length === 0) return null;
-  
-    const gameCounts = {};
-  
+    // Среднее время игры на игрока
+    const timeByPlayer = {};
     stats.forEach(item => {
-      const gameId = item.game_id;
-      if (gameId) {
-        gameCounts[gameId] = (gameCounts[gameId] || 0) + 1;
-      }
-    });
-  
-    return Object.entries(gameCounts).map(([game, count]) => ({
-      game,
-      attempts: count,
-    }));
-  }, [stats]);
+        const startTime = new Date(item.start_time);
+        const endTime = new Date(item.end_time);
+        const duration = (endTime - startTime) / 1000;
 
-  // Функция для получения количества попыток по уровням (нескольких игр)
-  const attemptsPerLevel = useMemo(() => {
-    if (!stats || stats.length === 0) return null;
-
-    const levelCounts = {
-        '1': 0,
-        '2': 0,
-        '3': 0,
-        '4': 0,
-        '5': 0,
-    };
-
-    stats.forEach(item => {
-        const rawLevel = item.level_id;
-        const levelNum = rawLevel.split('-')[1]; // разделение названия уровня на части и получение второй части (числа уровня) 
-        const level = String(parseInt(levelNum, 10)); // приведение от строки к целому числу (1, 2, 3 и т.д.)
-
-        levelCounts[level] += 1;
-    });
-
-    const totalAttempts = Object.values(levelCounts).reduce((sum, count) => sum + count, 0);
-
-    return Object.entries(levelCounts).map(([level, count]) => ({
-        name: `Уровень ${level}`,
-        value: count,
-        percent: ((count / totalAttempts)).toFixed(3),
-    }));
-  }, [stats]);
-
-  // Функция для скачивания CSV-файла
-  const downloadCSV = () => {
-    if (!stats || stats.length === 0) return null;
-
-    const headers = Object.keys(stats[0]).join(',');
-    const rows = stats.map(row => Object.values(row).join(','));
-    const csvContent = [headers, ...rows].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'player_stats.csv';
-    link.click();
-
-    URL.revokeObjectURL(url);
-  };
-
-    // Функция для расчёта общего времени в игре и максимального времени на уровне
-  const timeStats = useMemo(() => {
-    if (!stats || stats.length === 0) return null;
-    
-    let totalTime = 0;
-    let maxAttemptDuration = 0;
-    let longestAttemptLevel = "";
-    let minAttemptDuration = 1000000000;
-    let shortestAttemptLevel = "";
-    
-    stats.forEach(({ level_id, start_time, end_time }) => {
-        if (!start_time || !end_time) return;
-    
-        const start = new Date(start_time);
-        const end = new Date(end_time);
-        const duration = (end - start) / 1000; // в секундах
-    
-        totalTime += duration;
-
-        if (duration > maxAttemptDuration) {
-            maxAttemptDuration = duration;
-            longestAttemptLevel = level_id;
+        if (!timeByPlayer[item.player_id]) {
+            timeByPlayer[item.player_id] = 0;
         }
-
-        if (duration < minAttemptDuration) {
-            minAttemptDuration = duration;
-            shortestAttemptLevel = level_id;
-        }
+        timeByPlayer[item.player_id] += duration;
     });
-    
+
+    const totalTime = Object.values(timeByPlayer).reduce((sum, time) => sum + time, 0);
+    const avgPlayTimePerPlayer = uniquePlayers > 0 ? totalTime / uniquePlayers : 0;
+
     const formatTime = seconds => {
         const hours = Math.floor(seconds/3600)
         const minutes = Math.floor(seconds / 60) - hours * 60;
@@ -210,28 +109,73 @@ const GameStats = () => {
         }
         return `${secs} сек`;
     };
-    
+
     return {
-        total: formatTime(totalTime),
-        longestLevel: longestAttemptLevel,
-        longestLevelTime: formatTime(maxAttemptDuration),
-        shortestLevel: shortestAttemptLevel,
-        shortestLevelTime: formatTime(minAttemptDuration),
+        totalAttempts,
+        successRate: successRate.toFixed(1), // округлено до 1 знака
+        uniquePlayers,
+        newPlayers,
+        avgPlayTimePerPlayer: formatTime(avgPlayTimePerPlayer),
     };
   }, [stats]);
 
+  // Вычисляем количество игроков по регионам
+  const topRegionsByPlayers = useMemo(() => {
+    if (!stats || stats.length === 0) return null;
+    
+    const regionMap = {};
+    stats.forEach(({ region, player_id }) => {
+      if (!regionMap[region]) {
+        regionMap[region] = new Set();
+      }
+      regionMap[region].add(player_id);
+    });
+
+    return Object.entries(regionMap).map(([region, playersSet]) => ({
+      region,
+      count: playersSet.size,
+    })).sort((a, b) => b.count - a.count).slice(0, 5); // Сортируем по убыванию и берем топ-5 регионов
+  }, [stats]);
+
+  const levelsInfo = useMemo(() => {
+    if (!stats || stats.length === 0) return null;
+
+    const levelData = {};
+    stats.forEach(({ level_id, result }) => {
+      if (!levelData[level_id]) {
+        levelData[level_id] = { total: 0, success: 0 };
+      }
+
+      levelData[level_id].total += 1;
+      if (result) {
+        levelData[level_id].success += 1;
+      }
+    });
+
+    const resultArray = Object.entries(levelData).map(([level, { total, success }]) => ({
+      level,
+      totalAttempts: total,
+      successRate: total > 0 ? (success / total * 100).toFixed(1) : '0.0',
+    }));
+
+    return resultArray;
+  }, [stats]);
+
+  const downloadCSV = () => {
+    return;
+  };
+
     return (
-        <div className="main">
+        <div className="main" style={{ height: '100vh' }}>
 
             {/* Форма для ввода данных по игроку */}
-            <div className="player-stats-input">
-                <h1>Статистика игры</h1>
+            <div className="player-stats-input" style={{ height: '10%' }}>
+                <h1>Отчёт по игре</h1>
 
                 <form onSubmit={handleGameSearch} className="filter-form">
                     <label>
                     Игра:
                     <select value={gameId} onChange={(e) => setGameId(e.target.value)}>
-                        <option value="all">Все</option>
                         <option value="DIN">DIN</option>
                         <option value="VIR">VIR</option>
                         <option value="BOR">BOR</option>
@@ -256,138 +200,82 @@ const GameStats = () => {
                     />
                     </label>
 
-                    <label>
-                    Уровень:
-                    {(gameId === 'all' || levelOptions[gameId]) && (
-                        <select value={level} onChange={(e) => setLevel(e.target.value)}>
-                            <option value="all">Все</option>
-                            {(gameId === 'all'
-                                ? Object.values(levelOptions).flat()  // объединяем уровни всех игр
-                                : levelOptions[gameId]
-                            ).map((lvl) => (
-                                <option key={lvl} value={lvl}>{lvl}</option>
-                            ))}
-                        </select>
-                    )}
-                    </label>
-
-                    <button type="submit" className="filter-button">Поиск</button>
+                    <button type="submit" className="filter-button">Сгенерировать отчёт</button>
                 </form>
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', height: '710px', width: '100%' }}>
-                {/* Верхняя часть: два блока рядом */}
-                <div style={{ display: 'flex', flex: 1 }}>
-                    <div style={{ flex: 1, marginRight: '4px' }}>
-                        
-                    {mostLostLevels && ( // проверяем, что mostLostLevels существует и не пустой
-                        <div className="stats-container" style={{ backgroundColor: '#fff3f3' }}>
-                            <h3 style={{ color: '#c62828' }}>
-                            Уровни с наибольшим числом поражений
-                            </h3>
-                            {mostLostLevels.levels.length > 0 ? ( // если есть уровни с поражениями, отображаем их
+            <div style={{ display: 'flex', flexDirection: 'column', height: '80%', width: '100%' }}>
+                <div style={{ display: 'flex', flex: 1, width: '100%' }}>
+                    <div style={{ textAlign: 'left', width: '36%', padding: '30px', fontSize: '18px' }}>
+                        {useGameMetrics && (
                             <>
-                                <p style={{ fontSize: '24px', margin: '10px 0', color: '#d32f2f' }}>
-                                {mostLostLevels.levels.join(', ')}
-                                </p>
-                                <p style={{ fontSize: '16px', color: '#b71c1c' }}>
-                                Количество поражений: {mostLostLevels.count}
-                                </p>
+                                <h3 style={{ textAlign: 'center' }} >Ключевые показатели:</h3>
+                                <p><b>Всего попыток:</b> {useGameMetrics.totalAttempts}</p>
+                                <p><b>Процент успешных попыток:</b> {useGameMetrics.successRate}%</p>
+                                <p><b>Уникальных игроков:</b> {useGameMetrics.uniquePlayers}</p>
+                                <p><b>Новых игроков:</b> {useGameMetrics.newPlayers}</p>
+                                <p><b>Среднее время в игре:</b> {useGameMetrics.avgPlayTimePerPlayer}</p>
                             </>
-                            ) : ( // если нет уровней с поражениями, отображаем сообщение
-                            <p style={{ fontSize: '16px', color: '#b71c1c' }}>
-                                Количество поражений: 0
-                            </p>
-                            )}
-                        </div>
-                    )}
-
-                    {maxPointsRatio && (
-                        <div className="stats-container" style={{ backgroundColor: '#81C784' }}>
-                            <h3 style={{ color: '#1B1B1B' }}>
-                            % попыток с максимальным количеством набранных очков от всех пройденных уровней:
-                            </h3>
-                            <p style={{ fontSize: '16px', color: '#1B1B1B' }}>
-                            {maxPointsRatio.percentage}% ({maxPointsRatio.perfect} из {maxPointsRatio.total} попыток)
-                            </p>
-                        </div>
-                    )}
-
-                    {timeStats && (
-                        <div className="stats-container" style={{ backgroundColor: '#fff3f3' }}>
-                            <h3 style={{ color: '#c62828' }}>
-                            Общее время в игре
-                            </h3>
-                            <>
-                                <p style={{ fontSize: '24px', margin: '10px 0', color: '#d32f2f' }}>
-                                {timeStats.total}
-                                </p>
-                                <p style={{ fontSize: '16px', color: '#b71c1c' }}>
-                                Самая долгая попытка ({timeStats.longestLevel}): {timeStats.longestLevelTime}
-                                </p>
-                                <p style={{ fontSize: '16px', color: '#b71c1c' }}>
-                                Самая короткая попытка ({timeStats.shortestLevel}): {timeStats.shortestLevelTime}
-                                </p>
-                            </>
-                        </div>
-                    )}
-
+                        )}
                     </div>
-
-                    <div style={{ flex: 1, marginLeft: '4px' }}>
-
-                    {attemptsPerGame && (       
-                        <div className="stats-container" style={{ height: '230px' }}>
-                            <h3 style={{ marginTop: '0' }}>Распределение попыток по играм</h3>
-                            <ResponsiveContainer width="100%" height={200}>
-                                <BarChart
-                                layout="vertical"
-                                data={attemptsPerGame}
-                                margin={{ top: 10, right: 30, left: 20, bottom: 10 }}
-                                >
-                                <XAxis type="number" />
-                                <YAxis dataKey="game" type="category" />
-                                <Bar dataKey="attempts" fill="#4F93E6">
-                                    <LabelList dataKey="attempts" position="right" />
-                                </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    )}
-                    
-                    {attemptsPerLevel && (
-                        <div className="stats-container" style={{ height: '277px' }}>
-                            <h3 style={{ marginTop: '0', marginBottom: '0' }}>Распределение попыток по уровням</h3>
-                            <PieChart width={450} height={300}>
-                            <Pie
-                                data={attemptsPerLevel}
-                                dataKey="value"
-                                nameKey="name"
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={90}
-                                labelLine={false}
-                                label={({ percent }) => `${(percent * 100).toFixed(1)}%`}
-                            >
-                                {attemptsPerLevel.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={['#5D3FD3', '#228B22', '#B22222', '#1E90FF', '#8B008B'][index % ['#5D3FD3', '#228B22', '#B22222', '#1E90FF', '#8B008B'].length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip
-                            formatter={(value, name, props) => `${value} попыток`}
-                            />
-                            <Legend layout="vertical" verticalAlign="middle" align="right"/>
-                            </PieChart>
-                        </div>
-                    )}
-
+                    <div style={{ width: '28%', padding: '30px' }}>
+                        {topRegionsByPlayers && (
+                            <div>
+                                <h3 style={{ textAlign: 'center', fontSize: '18px' }}>Топ-5 регионов<br />по количеству игроков</h3>
+                                <table style={{ width: '90%', borderCollapse: 'collapse', margin: '0 auto', fontSize: '16px' }}>
+                                    <thead>
+                                    <tr>
+                                        <th style={{ borderBottom: '1px solid #ccc', textAlign: 'center', padding: '8px', borderRight: '1px solid #ccc' }}>Регион</th>
+                                        <th style={{ borderBottom: '1px solid #ccc', textAlign: 'center', padding: '8px' }}>Количество уникальных игроков</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {topRegionsByPlayers.map(({ region, count }) => (
+                                        <tr key={region}>
+                                        <td style={{ borderBottom: '1px solid #eee', padding: '8px', borderRight: '1px solid #ccc', }}>{region}</td>
+                                        <td style={{ borderBottom: '1px solid #eee', padding: '8px' }}>{count}</td>
+                                        </tr>
+                                    ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                    <div style={{ width: '36%', padding: '30px' }}>
+                        {levelsInfo && (
+                            <div>
+                                <h3 style={{ textAlign: 'center', fontSize: '18px' }}>Распределение попыток<br />по уровням</h3>
+                                <table style={{ width: '90%', borderCollapse: 'collapse', margin: '0 auto', fontSize: '16px' }}>
+                                    <thead>
+                                    <tr>
+                                        <th style={{ borderBottom: '1px solid #ccc', textAlign: 'center', padding: '8px', borderRight: '1px solid #ccc' }}>Уровень</th>
+                                        <th style={{ borderBottom: '1px solid #ccc', textAlign: 'center', padding: '8px', borderRight: '1px solid #ccc', }}>Количество попыток</th>
+                                        <th style={{ borderBottom: '1px solid #ccc', textAlign: 'center', padding: '8px' }}>Доля успешных попыток</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {levelsInfo.map(({ level, totalAttempts, successRate }) => (
+                                        <tr key={level}>
+                                        <td style={{ borderBottom: '1px solid #eee', padding: '8px', borderRight: '1px solid #ccc', whiteSpace: 'nowrap' }}>{level}</td>
+                                        <td style={{ borderBottom: '1px solid #eee', padding: '8px', borderRight: '1px solid #ccc', }}>{totalAttempts}</td>
+                                        <td style={{ borderBottom: '1px solid #eee', padding: '8px' }}>{successRate}</td>
+                                        </tr>
+                                    ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 </div>
+                <div style={{ display: 'flex', flex: 1, backgroundColor: 'lightgreen' }}>
+                    <div style={{ flex: 1, backgroundColor: 'lightgreen', width: '33%' }}>Лево</div>
+                    <div style={{ flex: 1, backgroundColor: 'lightgreen', width: '33%' }}>Право</div>
+                </div>
+            </div>
 
-                {/* Нижняя полоса и кнопка для скачивания*/}
-                {attemptsPerLevel && (
+            {useGameMetrics && (
                     <div style={{
-                        height: '55px',
+                        height: '5%', 
                         }}>
                         <button
                             onClick={downloadCSV}
@@ -406,7 +294,6 @@ const GameStats = () => {
                         </button>
                     </div>
                 )}
-            </div>
         </div>
     )
 };
