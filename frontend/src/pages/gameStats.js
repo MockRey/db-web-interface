@@ -1,5 +1,15 @@
-import { useState } from 'react';
-import { useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    Tooltip,
+    ResponsiveContainer,
+    LabelList,
+  } from 'recharts';
 import './gameStats.css';
 
 const GameStats = () => {
@@ -7,6 +17,8 @@ const GameStats = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [stats, setStats] = useState([]);
+  const [totalRounds, setTotalRounds] = useState(0);
+  const divRef = useRef();
   
   // Асинхронная функция для обработки отправки формы с данными по игроку
   const handleGameSearch = async (e) => {
@@ -41,6 +53,7 @@ const GameStats = () => {
 
         const data = await response.json();
         setStats(data.stats);
+        setTotalRounds(data.totalRounds)
         console.log('Ответ от сервера:', data);
     }
 
@@ -97,6 +110,10 @@ const GameStats = () => {
     const totalTime = Object.values(timeByPlayer).reduce((sum, time) => sum + time, 0);
     const avgPlayTimePerPlayer = uniquePlayers > 0 ? totalTime / uniquePlayers : 0;
 
+    // Доля в общем числе попыток
+    const gameShare = (stats.length / totalRounds) * 100;
+
+    // Функция для форматирования времени в удобный вид на выводе
     const formatTime = seconds => {
         const hours = Math.floor(seconds/3600)
         const minutes = Math.floor(seconds / 60) - hours * 60;
@@ -116,8 +133,9 @@ const GameStats = () => {
         uniquePlayers,
         newPlayers,
         avgPlayTimePerPlayer: formatTime(avgPlayTimePerPlayer),
+        gameShare: gameShare.toFixed(1),
     };
-  }, [stats]);
+  }, [stats, totalRounds]);
 
   // Вычисляем количество игроков по регионам
   const topRegionsByPlayers = useMemo(() => {
@@ -137,7 +155,8 @@ const GameStats = () => {
     })).sort((a, b) => b.count - a.count).slice(0, 5); // Сортируем по убыванию и берем топ-5 регионов
   }, [stats]);
 
-  const levelsInfo = useMemo(() => {
+  // Вычисляем распределение попыток по уровням
+  const levelsDistribution = useMemo(() => {
     if (!stats || stats.length === 0) return null;
 
     const levelData = {};
@@ -161,8 +180,84 @@ const GameStats = () => {
     return resultArray;
   }, [stats]);
 
-  const downloadCSV = () => {
-    return;
+  // Вычисляем распределение игроков по уровням
+  const playersDistribution = useMemo(() => {
+    if (!stats || stats.length === 0) return null;
+
+    const playerData = {};
+    const allUniquePlayers = new Set();
+
+    stats.forEach(({ level_id, player_id }) => {
+        allUniquePlayers.add(player_id);
+
+        if (!playerData[level_id]) {
+            playerData[level_id] = new Set();
+        }
+        playerData[level_id].add(player_id);
+    });
+  
+    const uniquePlayersPerLevel = Object.entries(playerData).map(([level, playerSet]) => ({
+        level,
+        uniquePlayers: playerSet.size,
+        share: (playerSet.size / allUniquePlayers.size * 100).toFixed(1),
+    }));
+  
+    return uniquePlayersPerLevel;
+  }, [stats]);
+
+  // Вычисляем распределение игроков по уровням
+  const avgTimePerLevel = useMemo(() => {
+    if (!stats || stats.length === 0) return null;
+
+    const totalTime = {};
+    const totalAttempts = {};
+
+    stats.forEach(({ level_id, start_time, end_time }) => {
+        const start = new Date(start_time);
+        const end = new Date(end_time);
+        const duration = (end - start) / 1000; // в секундах
+  
+        if (!totalTime[level_id]) {
+            totalTime[level_id] = 0;
+            totalAttempts[level_id] = 0;
+        }
+  
+        totalTime[level_id] += duration;
+        totalAttempts[level_id] += 1;
+      });
+  
+      const result = Object.keys(totalTime).map(level => {
+        const averageMinutes = totalTime[level] / 60 / totalAttempts[level];
+        return {
+          level,
+          minutes: Number(averageMinutes.toFixed(2)),
+        };
+      });
+
+      return result;
+  }, [stats]);
+
+  const downloadPDF = async () => {
+    const element = divRef.current;
+    const canvas = await html2canvas(element);
+    const imgData = canvas.toDataURL('image/png');
+
+    const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: [canvas.width, canvas.height],
+    });
+
+    let pdfName = `${gameId} game report`
+    if (startDate) {
+        pdfName += ` from ${startDate}`
+    }
+    if (endDate) {
+        pdfName += ` to ${endDate}`
+    }
+
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    pdf.save(`${pdfName}`);
   };
 
     return (
@@ -204,29 +299,55 @@ const GameStats = () => {
                 </form>
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', height: '80%', width: '100%' }}>
+            <div ref={divRef} style={{ display: 'flex', flexDirection: 'column', height: '80%', width: '100%' }}>
                 <div style={{ display: 'flex', flex: 1, width: '100%' }}>
-                    <div style={{ textAlign: 'left', width: '36%', padding: '30px', fontSize: '18px' }}>
+                    <div style={{ textAlign: 'left', width: '36%', padding: '30px 30px 0px', fontSize: '18px' }}>
                         {useGameMetrics && (
                             <>
-                                <h3 style={{ textAlign: 'center' }} >Ключевые показатели:</h3>
+                                <h3 style={{ textAlign: 'center', marginBottom: '40px' }} >Ключевые показатели:</h3>
                                 <p><b>Всего попыток:</b> {useGameMetrics.totalAttempts}</p>
                                 <p><b>Процент успешных попыток:</b> {useGameMetrics.successRate}%</p>
                                 <p><b>Уникальных игроков:</b> {useGameMetrics.uniquePlayers}</p>
                                 <p><b>Новых игроков:</b> {useGameMetrics.newPlayers}</p>
                                 <p><b>Среднее время в игре:</b> {useGameMetrics.avgPlayTimePerPlayer}</p>
+                                <p><b>Доля в общем числе попыток:</b> {useGameMetrics.gameShare}%</p>
                             </>
+                        )}
+                    </div>
+                    <div style={{ width: '36%', padding: '30px' }}>
+                        {levelsDistribution && (
+                            <div>
+                                <h3 style={{ textAlign: 'center', fontSize: '18px' }}>Распределение попыток<br />по уровням</h3>
+                                <table style={{ width: '90%', borderCollapse: 'collapse', margin: '0 auto', fontSize: '14px' }}>
+                                    <thead>
+                                    <tr>
+                                        <th style={{ borderBottom: '1px solid #ccc', textAlign: 'center', padding: '8px', borderRight: '1px solid #ccc' }}>Уровень</th>
+                                        <th style={{ borderBottom: '1px solid #ccc', textAlign: 'center', padding: '8px', borderRight: '1px solid #ccc', }}>Количество попыток</th>
+                                        <th style={{ borderBottom: '1px solid #ccc', textAlign: 'center', padding: '8px' }}>Доля успешных попыток</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {levelsDistribution.map(({ level, totalAttempts, successRate }) => (
+                                        <tr key={level}>
+                                        <td style={{ borderBottom: '1px solid #eee', padding: '8px', borderRight: '1px solid #ccc', whiteSpace: 'nowrap' }}>{level}</td>
+                                        <td style={{ borderBottom: '1px solid #eee', padding: '8px', borderRight: '1px solid #ccc', }}>{totalAttempts}</td>
+                                        <td style={{ borderBottom: '1px solid #eee', padding: '8px' }}>{successRate}%</td>
+                                        </tr>
+                                    ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
                     </div>
                     <div style={{ width: '28%', padding: '30px' }}>
                         {topRegionsByPlayers && (
                             <div>
                                 <h3 style={{ textAlign: 'center', fontSize: '18px' }}>Топ-5 регионов<br />по количеству игроков</h3>
-                                <table style={{ width: '90%', borderCollapse: 'collapse', margin: '0 auto', fontSize: '16px' }}>
+                                <table style={{ width: '90%', borderCollapse: 'collapse', margin: '0 auto', fontSize: '14px' }}>
                                     <thead>
                                     <tr>
                                         <th style={{ borderBottom: '1px solid #ccc', textAlign: 'center', padding: '8px', borderRight: '1px solid #ccc' }}>Регион</th>
-                                        <th style={{ borderBottom: '1px solid #ccc', textAlign: 'center', padding: '8px' }}>Количество уникальных игроков</th>
+                                        <th style={{ borderBottom: '1px solid #ccc', textAlign: 'center', padding: '8px' }}>Количество<br />игроков</th>
                                     </tr>
                                     </thead>
                                     <tbody>
@@ -241,44 +362,71 @@ const GameStats = () => {
                             </div>
                         )}
                     </div>
-                    <div style={{ width: '36%', padding: '30px' }}>
-                        {levelsInfo && (
-                            <div>
-                                <h3 style={{ textAlign: 'center', fontSize: '18px' }}>Распределение попыток<br />по уровням</h3>
-                                <table style={{ width: '90%', borderCollapse: 'collapse', margin: '0 auto', fontSize: '16px' }}>
-                                    <thead>
-                                    <tr>
-                                        <th style={{ borderBottom: '1px solid #ccc', textAlign: 'center', padding: '8px', borderRight: '1px solid #ccc' }}>Уровень</th>
-                                        <th style={{ borderBottom: '1px solid #ccc', textAlign: 'center', padding: '8px', borderRight: '1px solid #ccc', }}>Количество попыток</th>
-                                        <th style={{ borderBottom: '1px solid #ccc', textAlign: 'center', padding: '8px' }}>Доля успешных попыток</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {levelsInfo.map(({ level, totalAttempts, successRate }) => (
-                                        <tr key={level}>
-                                        <td style={{ borderBottom: '1px solid #eee', padding: '8px', borderRight: '1px solid #ccc', whiteSpace: 'nowrap' }}>{level}</td>
-                                        <td style={{ borderBottom: '1px solid #eee', padding: '8px', borderRight: '1px solid #ccc', }}>{totalAttempts}</td>
-                                        <td style={{ borderBottom: '1px solid #eee', padding: '8px' }}>{successRate}</td>
-                                        </tr>
-                                    ))}
-                                    </tbody>
-                                </table>
+                </div>
+
+                <div style={{ display: 'flex', flex: 1 }}>
+                    <div style={{ flex: 1, width: '50%' }}>
+                        {playersDistribution && (
+                            <div style={{ width: '100%', height: '87%' }}>
+                                <h3 style={{ textAlign: 'center', fontSize: '18px', marginTop: 0 }}>Удержание игроков по уровням</h3>
+                                <ResponsiveContainer>
+                                    <BarChart
+                                    layout="horizontal"
+                                    data={playersDistribution}
+                                    margin={{ top: 20, right: 30, left: 20 }}
+                                    >
+                                    <XAxis dataKey="level" type="category" />
+                                    <YAxis
+                                        type="number"
+                                        allowDecimals={true}
+                                        ticks={[0, 25, 50, 75, 100]}
+                                        tickFormatter={(value) => `${value}%`}
+                                        domain={[0, 100]}/>
+                                    <Tooltip
+                                        formatter={(value, name, props) => {
+                                            const { payload } = props;
+                                            return `Игроков: ${payload.uniquePlayers}`;
+                                        }}
+                                    />
+                                    <Bar dataKey="share" fill="lightgreen">
+                                        <LabelList dataKey="share" position="top" formatter={(value) => `${value}%`} />
+                                    </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+                    </div>
+                    <div style={{ flex: 1, width: '50%' }}>
+                        {avgTimePerLevel && (
+                            <div style={{ width: '100%', height: '80%' }}>
+                                <h3 style={{ textAlign: 'center', fontSize: '18px', marginTop: 0 }}>Среднее время<br />прохождения уровня (в минутах)</h3>
+                                <ResponsiveContainer>
+                                    <BarChart
+                                    layout="horizontal"
+                                    data={avgTimePerLevel}
+                                    margin={{ top: 20, right: 30, left: 20 }}
+                                    >
+                                    <XAxis dataKey="level" type="category" />
+                                    <YAxis
+                                        type="number"
+                                        allowDecimals={true}
+                                        domain={[0, (dataMax) => Math.ceil(dataMax)]}
+                                    />
+                                    <Bar dataKey="minutes" fill="lightblue">
+                                        <LabelList dataKey="minutes" position="top" />
+                                    </Bar>
+                                    </BarChart>
+                                </ResponsiveContainer>
                             </div>
                         )}
                     </div>
                 </div>
-                <div style={{ display: 'flex', flex: 1, backgroundColor: 'lightgreen' }}>
-                    <div style={{ flex: 1, backgroundColor: 'lightgreen', width: '33%' }}>Лево</div>
-                    <div style={{ flex: 1, backgroundColor: 'lightgreen', width: '33%' }}>Право</div>
-                </div>
             </div>
 
             {useGameMetrics && (
-                    <div style={{
-                        height: '5%', 
-                        }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '10%' }}>
                         <button
-                            onClick={downloadCSV}
+                            onClick={downloadPDF}
                             style={{
                             backgroundColor: '#28a745',
                             color: 'white',
@@ -290,7 +438,7 @@ const GameStats = () => {
                             boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
                             }}
                         >
-                            Скачать выборку (CSV)
+                            Скачать отчёт (PDF)
                         </button>
                     </div>
                 )}

@@ -186,7 +186,7 @@ app.post('/game-stats', async (req, res) => {
     const { gameId, startDate, endDate } = req.body;
   
     try {
-      // Строим запрос для получения статистики
+      // Первый (1/2) запрос для получения статистики
       let query = `
         SELECT play_history.*, levels.game_id, players.region, players.registration_date
         FROM play_history
@@ -194,30 +194,46 @@ app.post('/game-stats', async (req, res) => {
         JOIN players ON play_history.player_id = players.player_id
         WHERE levels.game_id = $1
       `;
+
+      // Второй (2/2) запрос для получения общего количества раундов по всем играм
+      let totalRoundsNum = `
+      SELECT COUNT(*) AS total_rounds
+      FROM play_history
+      WHERE points >= 0`;
+
       const params = [gameId];
+      const totalParams = [];
       let paramIndex = 2; // счётчик индексов, 2 - это следующий индекс после $1
+      let totalParamIndex = 1;
 
       // Добавляем фильтр по startDate, если он передан
         if (startDate) {
             query += ` AND play_history.start_time >= $${paramIndex}`;
+            totalRoundsNum += ` AND play_history.start_time >= $${totalParamIndex}`;
             params.push(startDate);
+            totalParams.push(startDate);
             paramIndex++;
+            totalParamIndex++;
         }
 
       // Добавляем фильтр по endDate, если он передан
         if (endDate) {
             query += ` AND play_history.end_time <= $${paramIndex}`;
+            totalRoundsNum += ` AND play_history.end_time <= $${totalParamIndex}`;
             params.push(endDate);
+            totalParams.push(endDate);
             paramIndex++;
+            totalParamIndex++;
         }
 
       const result = await pool.query(query, params);
+      const totalRoundsResult = await pool.query(totalRoundsNum, totalParams);
   
       if (result.rowCount === 0) {
         return res.status(404).json({ error: 'Нет данных по указанным условиям' });
       }
   
-      res.json({ stats: result.rows });
+      res.json({ totalRounds: Number(totalRoundsResult.rows[0].total_rounds), stats: result.rows });
     } 
     
     catch (err) {
