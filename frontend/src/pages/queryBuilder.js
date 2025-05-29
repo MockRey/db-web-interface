@@ -201,13 +201,15 @@ const QueryBuilder = () => { //
               <table border="1"> {/* создание таблицы с минимальной границей */}
                   <thead> {/* тег настройки шапки HTML-таблицы */}
                   <tr> {/* тег строки таблицы */}
-                      {result100.length > 0 && Object.keys(result100[0]).map((key) => <th key={key}>{key}</th>)} {/* если в переменной (массиве) result есть элементы (... > 0), то создаём шапку таблицы с ключами объекта (ключами станут названия столбцов из JSONа с бэкенда); th - тег заголовка таблицы */}
+                    <th></th> {/* Пустая ячейка для нумерации */}
+                    {result100.length > 0 && Object.keys(result100[0]).map((key) => <th key={key}>{key}</th>)} {/* если в переменной (массиве) result есть элементы (... > 0), то создаём шапку таблицы с ключами объекта (ключами станут названия столбцов из JSONа с бэкенда); th - тег заголовка таблицы */}
                   </tr>
                   </thead>
                   <tbody> {/* тег тела таблицы */}
                   {result100.map((row, index) => ( // функция map применяется к массиву result и возвращает массив строк таблицы
                       <tr key={index}> {/* tr - тег строки таблицы */}
-                      {Object.values(row).map((value, idx) => <td key={idx}>{typeof value === 'boolean' ? (value ? 'Completed' : 'Failed') : value}</td>)} {/* td - тег ячейки таблицы; из-за бага добавлено условие: если значение в ячейке - булево, то вместо true/false выводится Completed/Failed */}
+                      <td style={{ fontWeight: 'bold', paddingRight: '8px' }}>{index + 1}</td> {/* Номер строки */}
+                      {Object.values(row).map((value, idx) => <td key={idx} style={{ whiteSpace: 'nowrap' }}>{typeof value === 'boolean' ? (value ? 'Completed' : 'Failed') : value}</td>)} {/* td - тег ячейки таблицы; из-за бага добавлено условие: если значение в ячейке - булево, то вместо true/false выводится Completed/Failed */}
                       </tr>
                   ))}
                   </tbody>
