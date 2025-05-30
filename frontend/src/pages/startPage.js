@@ -18,12 +18,14 @@ const StartPage = () => {
   
     return (
       <div style={{ alignItems: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100vh'}}>
+        <div style={{ margin: '50px' }}>
         <text style={{ fontSize: '50px', fontWeight: 'bold' }}>
           Добро пожаловать в пространство {welcome()}!
         </text>
         <p style={{ fontSize: '30px', marginTop: '30px' }}>
           Выберите нужный раздел в меню слева.
         </p>
+        </div>
       </div>
     );
   };

@@ -305,7 +305,7 @@ const GameStats = () => {
                     <div style={{ textAlign: 'left', width: '36%', padding: '30px 30px 0px', fontSize: '18px' }}>
                         {useGameMetrics && (
                             <>
-                                <h3 style={{ textAlign: 'center', marginBottom: '40px' }} >Ключевые показатели:</h3>
+                                <h3 style={{ textAlign: 'center', marginBottom: '35px' }} >Ключевые показатели:</h3>
                                 <p><b>Всего попыток:</b> {useGameMetrics.totalAttempts}</p>
                                 <p><b>Процент успешных попыток:</b> {useGameMetrics.successRate}%</p>
                                 <p><b>Уникальных игроков:</b> {useGameMetrics.uniquePlayers}</p>

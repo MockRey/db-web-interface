@@ -21,14 +21,13 @@ const QueryBuilder = () => { //
       const response = await fetch('http://localhost:3000/query', { // Переменная response - результат выполнения запроса fetch
         method: 'POST', // потому что отправляем данные на сервер
         headers: { 'Content-Type': 'application/json' }, // заголовки указывают, что отправляем SQL-запрос в формате JSON
-        body: JSON.stringify({ sql }) // тело запроса, где переменная sql превращается в JSON-строку
+        body: JSON.stringify({ sql, role: localStorage.getItem('role') }) // тело запроса, где переменная sql превращается в JSON-строку
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         alert(errorData.error || 'Произошла ошибка');  // если ответ от сервера не успешный, то выбрасываем текст ошибки в alert
         return; // выходим из функции, чтобы не продолжать выполнение кода
-        // throw new Error(`${response.status} ${response.statusText}`);
       }
 
       // Получаем ответ от сервера
@@ -46,8 +45,16 @@ const QueryBuilder = () => { //
   // Асинхронная функция для выгрузки шаблонов с сервера
   const loadTemplates = async () => {
 
+    const loginFetcher = {
+      login: localStorage.getItem('login')
+    };
+
     try {
-      const response = await fetch('http://localhost:3000/templates');
+      const response = await fetch('http://localhost:3000/templates', {
+        method: 'POST',
+        headers: {  'Content-Type': 'application/json'  },
+        body: JSON.stringify(loginFetcher),
+      });
 
       if (!response.ok) {
         throw new Error(`${response.status} ${response.statusText}`);
@@ -72,10 +79,10 @@ const QueryBuilder = () => { //
     if (templateName) { // Проверяем, что пользователь не нажал "Отмена"
 
       try {
-        const response = await fetch('http://localhost:3000/templates', {
+        const response = await fetch('http://localhost:3000/newTemplate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: templateName, sql })
+          body: JSON.stringify({ name: templateName, sql, login: localStorage.getItem('login') }) // отправляем на сервер название шаблона, SQL-запрос и логин пользователя
         });
 
         if (!response.ok) {
@@ -177,7 +184,7 @@ const QueryBuilder = () => { //
           <div style={{ flex: 1, marginLeft: '4px' }}>
             <h2>Сохранённые шаблоны:</h2>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <div style={{ maxHeight: '110px', overflowY: 'auto', border: '1px solid #000', borderRadius: '4px', padding: '10px', width: '70%' }}>
+              <div style={{ height: '110px', overflowY: 'auto', border: '1px solid #000', borderRadius: '4px', padding: '10px', width: '70%' }}>
                 {templates.map((template) => ( // функция map применяется к массиву templates и возвращает массив кнопок с названиями шаблонов
                   <div key={template.id}> {/* атрибут key необходим при парсинге массива; в данном случае - id шаблона */}
                     <button onClick={() => handleTemplate(template.sql)}> {/* при клике на кнопку вызывается функция handleTemplate и подставляет запрос в форму */}
