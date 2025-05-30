@@ -241,3 +241,27 @@ app.post('/game-stats', async (req, res) => {
       res.status(500).json({ error: 'Ошибка получения статистики игрока' });
     }
   });
+
+// Эндпоинт для обработки кредов
+app.post('/login', async (req, res) => {
+    const { login, password } = req.body;
+
+    try {
+        const result = await pool.query(
+          'SELECT role FROM credentials WHERE login = $1 AND password = $2',
+          [login, password]
+        );
+      
+        if (result.rows.length > 0) {
+          const userRole = result.rows[0].role;
+          res.status(200).json({ role: userRole });
+        } else {
+          res.status(401).json({ error: "Неверный логин или пароль" });
+        }
+    } 
+    
+    catch (error) {
+        console.error('❌ Ошибка при проверке пользователя:', error);
+        res.status(500).json({ error: "Ошибка сервера" });
+    }
+});

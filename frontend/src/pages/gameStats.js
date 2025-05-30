@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import CustomTooltip from '../components/customTooltip';
 import {
     BarChart,
     Bar,
@@ -382,12 +383,7 @@ const GameStats = () => {
                                         ticks={[0, 25, 50, 75, 100]}
                                         tickFormatter={(value) => `${value}%`}
                                         domain={[0, 100]}/>
-                                    <Tooltip
-                                        formatter={(value, name, props) => {
-                                            const { payload } = props;
-                                            return `Игроков: ${payload.uniquePlayers}`;
-                                        }}
-                                    />
+                                    <Tooltip content={<CustomTooltip />} />
                                     <Bar dataKey="share" fill="lightgreen">
                                         <LabelList dataKey="share" position="top" formatter={(value) => `${value}%`} />
                                     </Bar>

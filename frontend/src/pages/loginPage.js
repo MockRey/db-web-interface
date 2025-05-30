@@ -1,13 +1,48 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const LoginPage = () => {
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
+  const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Здесь будет логика авторизации
+    if (!login || !password) {
+        alert('Пожалуйста, заполните оба поля');
+        return;
+    }
+
+    const loginData = {
+        login,
+        password
+    };
+
+    try {
+        const response = await fetch('http://localhost:3000/login', {
+        method: 'POST',
+        headers: {  'Content-Type': 'application/json'  },
+        body: JSON.stringify(loginData),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            alert(errorData.error || 'Произошла ошибка');
+            return;
+        }
+
+        const data = await response.json();
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('login', login);
+        localStorage.setItem('role', data.role)
+        navigate('/start');
+    }
+
+    catch (error) {
+        console.error("Ошибка при попытке входе:", error);
+        alert("Произошла ошибка при попытке входа.");
+    }
   };
 
   return (
@@ -60,18 +95,19 @@ const LoginPage = () => {
         />
 
         <button
-          type="submit"
-          style={{
-            backgroundColor: '#4CAF50',
-            color: '#fff',
-            padding: '10px',
-            borderRadius: '6px',
+            type="submit"
+            style={{
+            backgroundColor: '#28a745',
+            color: 'white',
+            padding: '10px 20px',
             border: 'none',
+            borderRadius: '8px',
+            fontSize: '16px',
             cursor: 'pointer',
-            fontWeight: 'bold'
-          }}
+            boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+            }}
         >
-          Войти
+            Войти
         </button>
       </form>
     </div>
